@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from '@/config/swagger';
 import { errorHandler } from '@/middlewares/error.middleware';
 import authRoutes from '@/routes/auth.routes';
+import bilanRoutes from '@/routes/bilan.routes';
 import healthRoutes from '@/routes/health.routes';
 import personalityRoutes from '@/routes/personality.routes';
 import profileRoutes from '@/routes/profile.routes';
@@ -27,6 +28,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api', redirectRoutes);
 app.use('/api/personality', personalityRoutes);
+app.use('/api/bilan', bilanRoutes);
 
 app.use(errorHandler);
 

@@ -1,69 +1,69 @@
-import { Schema, model } from 'mongoose';
+import { Schema, Types, model } from 'mongoose';
 
-const JobSchema = new Schema(
+export interface JobDocument {
+  _id: Types.ObjectId;
+
+  externalId?: string;
+  source?: string;
+
+  isActive: boolean;
+  lastSyncedAt?: Date;
+
+  title: string;
+  description?: string;
+  sector?: string;
+
+  riasec: string[];
+
+  competences: string[];
+  softSkills: string[];
+
+  values: string[];
+  workConditions: string[];
+
+  tags: string[];
+
+  salaryMin?: number;
+  salaryMax?: number;
+
+  growthOutlook: 'stable' | 'growing' | 'declining' | 'unknown';
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const JobSchema = new Schema<JobDocument>(
   {
-    externalId: { type: String, trim: true },
-    source: { type: String, trim: true }, // ex: "France Travail", "LinkedIn", etc.
+    externalId: String,
+    source: String,
 
     isActive: { type: Boolean, default: true },
     lastSyncedAt: Date,
 
-    title: { type: String, required: true, trim: true },
-    description: { type: String, trim: true },
+    title: { type: String, required: true },
+    description: String,
+    sector: String,
 
-    requiredSkills: {
-      type: [String],
-      default: [],
-    },
+    riasec: { type: [String], default: [] },
 
-    sector: {
-      type: String,
-      trim: true,
-    },
+    competences: { type: [String], default: [] },
+    softSkills: { type: [String], default: [] },
 
-    salaryMin: {
-      type: Number,
-      min: 0,
-    },
-    salaryMax: {
-      type: Number,
-      min: 0,
-    },
+    values: { type: [String], default: [] },
+    workConditions: { type: [String], default: [] },
+
+    tags: { type: [String], default: [] },
+
+    salaryMin: Number,
+    salaryMax: Number,
 
     growthOutlook: {
       type: String,
       enum: ['stable', 'growing', 'declining', 'unknown'],
       default: 'unknown',
     },
-
-    tags: {
-      type: [String],
-      default: [],
-    },
-
-    location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-        required: true,
-      },
-      coordinates: {
-        type: [Number], // [lng, lat]
-        default: [0, 0],
-        required: true,
-      },
-    },
-
-    addressCity: { type: String, trim: true },
-    addressPostalCode: { type: String, trim: true },
-    addressCountry: { type: String, trim: true },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
-JobSchema.index({ location: '2dsphere' });
-
-export default model('Job', JobSchema);
+export const Job = model<JobDocument>('Job', JobSchema);
