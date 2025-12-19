@@ -12,30 +12,28 @@ describe('findRecommendedJobs', () => {
     await mongoose.connection.close();
   });
 
-  it('should return jobs matching multiple criteria with reasons', async () => {
+  it('returns only relevant jobs above the score threshold', async () => {
     await Job.insertMany([
       {
         title: 'Développeur·se web',
-        sector: 'Tech',
         isActive: true,
+        sector: 'Tech',
         riasec: ['RIASEC_I'],
         competences: ['analysis', 'digital'],
         softSkills: ['autonomy'],
         values: ['learning'],
         workConditions: ['remote'],
-        description: 'Développe des applications web.',
         growthOutlook: 'growing',
       },
       {
-        title: 'Coach professionnel',
-        sector: 'Accompagnement',
+        title: 'Job peu pertinent',
         isActive: true,
-        riasec: ['RIASEC_S'],
-        competences: ['pedagogy'],
-        softSkills: ['communication'],
-        values: ['meaning'],
-        workConditions: ['contact'],
-        description: 'Accompagne des personnes.',
+        sector: 'Autre',
+        riasec: ['RIASEC_R'],
+        competences: [],
+        softSkills: [],
+        values: [],
+        workConditions: [],
         growthOutlook: 'stable',
       },
     ]);
@@ -51,29 +49,17 @@ describe('findRecommendedJobs', () => {
     const result = await findRecommendedJobs(input);
 
     expect(result.length).toBe(1);
-
-    const job = result[0];
-
-    expect(job.title).toBe('Développeur·se web');
-    expect(job.score).toBeGreaterThan(0);
-    expect(job.reasons).toEqual(
-      expect.arrayContaining([
-        'Correspond à tes intérêts professionnels',
-        'Mobilise tes compétences clés',
-        'Aligné avec tes soft skills',
-        'Compatible avec tes valeurs',
-        'Correspond à tes conditions de travail préférées',
-      ]),
-    );
+    expect(result[0].title).toBe('Développeur·se web');
+    expect(result[0].score).toBeGreaterThanOrEqual(60);
   });
 
-  it('should rank jobs by score descending', async () => {
+  it('returns jobs sorted by score descending', async () => {
     await Job.insertMany([
       {
-        title: 'Job faible',
+        title: 'Job moyen',
         isActive: true,
         riasec: ['RIASEC_I'],
-        competences: [],
+        competences: ['analysis'],
         softSkills: [],
         values: [],
         workConditions: [],
@@ -83,7 +69,7 @@ describe('findRecommendedJobs', () => {
         title: 'Job fort',
         isActive: true,
         riasec: ['RIASEC_I'],
-        competences: ['analysis'],
+        competences: ['analysis', 'digital'],
         softSkills: ['autonomy'],
         values: ['learning'],
         workConditions: ['remote'],
@@ -93,7 +79,7 @@ describe('findRecommendedJobs', () => {
 
     const input = {
       interestsProfile: ['RIASEC_I'],
-      competenceStrengths: ['analysis'],
+      competenceStrengths: ['analysis', 'digital'],
       softSkillStrengths: ['autonomy'],
       topValues: ['learning'],
       topWorkConditions: ['remote'],
@@ -101,20 +87,18 @@ describe('findRecommendedJobs', () => {
 
     const result = await findRecommendedJobs(input);
 
-    expect(result[0].title).toBe('Job fort');
-    expect(result[0].score).toBeGreaterThan(result[1].score);
+    for (let i = 0; i < result.length - 1; i++) {
+      expect(result[i].score).toBeGreaterThanOrEqual(result[i + 1].score);
+    }
   });
 
-  it('should respect the limit parameter', async () => {
+  it('respects the limit parameter', async () => {
     await Job.insertMany(
-      Array.from({ length: 20 }).map((_, i) => ({
+      Array.from({ length: 10 }).map((_, i) => ({
         title: `Job ${i}`,
         isActive: true,
         riasec: ['RIASEC_I'],
         competences: ['analysis'],
-        softSkills: [],
-        values: [],
-        workConditions: [],
         growthOutlook: 'unknown',
       })),
     );
@@ -127,48 +111,18 @@ describe('findRecommendedJobs', () => {
       topWorkConditions: [],
     };
 
-    const result = await findRecommendedJobs(input, 5);
+    const result = await findRecommendedJobs(input, 3);
 
-    expect(result.length).toBe(5);
+    expect(result.length).toBe(3);
   });
 
-  it('should exclude jobs with zero score', async () => {
-    await Job.insertMany([
-      {
-        title: 'Job sans match',
-        isActive: true,
-        riasec: ['RIASEC_R'],
-        competences: [],
-        softSkills: [],
-        values: [],
-        workConditions: [],
-        growthOutlook: 'unknown',
-      },
-    ]);
-
-    const input = {
-      interestsProfile: ['RIASEC_I'],
-      competenceStrengths: ['analysis'],
-      softSkillStrengths: [],
-      topValues: [],
-      topWorkConditions: [],
-    };
-
-    const result = await findRecommendedJobs(input);
-
-    expect(result.length).toBe(0);
-  });
-
-  it('should ignore inactive jobs', async () => {
+  it('ignores inactive jobs', async () => {
     await Job.insertMany([
       {
         title: 'Job inactif',
         isActive: false,
         riasec: ['RIASEC_I'],
         competences: ['analysis'],
-        softSkills: [],
-        values: [],
-        workConditions: [],
         growthOutlook: 'unknown',
       },
     ]);

@@ -14,7 +14,7 @@ type JobSeed = {
   growthOutlook?: GrowthOutlook;
 };
 
-export async function seedJobs() {
+export async function seedJobsV1() {
   await Job.deleteMany({});
 
   const jobs: JobSeed[] = [

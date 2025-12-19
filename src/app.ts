@@ -8,6 +8,7 @@ import { errorHandler } from '@/middlewares/error.middleware';
 import authRoutes from '@/routes/auth.routes';
 import bilanRoutes from '@/routes/bilan.routes';
 import healthRoutes from '@/routes/health.routes';
+import jobRoutes from '@/routes/job.routes';
 import personalityRoutes from '@/routes/personality.routes';
 import profileRoutes from '@/routes/profile.routes';
 import redirectRoutes from '@/routes/redirect.routes';
@@ -29,6 +30,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api', redirectRoutes);
 app.use('/api/personality', personalityRoutes);
 app.use('/api/bilan', bilanRoutes);
+app.use('/api/job', jobRoutes);
 
 app.use(errorHandler);
 
