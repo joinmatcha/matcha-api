@@ -5,6 +5,46 @@ import { BilanCompetence } from '@/models/BilanCompetence';
 import { Job } from '@/models/Job';
 import { mapJobLabels } from '@/utils/jobLabelMapper';
 
+export const getDeck = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+
+    const jobs = await Job.aggregate([
+      { $match: { isActive: true } },
+      { $sample: { size: limit } },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          description: 1,
+          sector: 1,
+          tags: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      jobs: jobs.map((j) => ({
+        id: j._id.toString(),
+        title: j.title,
+        description: j.description,
+        sector: j.sector,
+        tags: j.tags ?? [],
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getRecommendedJobs = async (
   req: Request,
   res: Response,
