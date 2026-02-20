@@ -1,10 +1,17 @@
 import { NextFunction, Request, Response } from 'express';
 import { Types } from 'mongoose';
 
+import { DAILY_SWIPE_LIMIT } from '@/constants/swipe';
 import { BilanCompetence } from '@/models/BilanCompetence';
 import { Job } from '@/models/Job';
 import { Swipe } from '@/models/Swipe';
 import { mapJobLabels } from '@/utils/jobLabelMapper';
+
+function getStartOfDay(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export const getDeck = async (
   req: Request,
@@ -16,11 +23,27 @@ export const getDeck = async (
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+    const swipedToday = await Swipe.countDocuments({
+      userId: req.user.id,
+      swipedAt: { $gte: getStartOfDay() },
+    });
+
+    const remaining = Math.max(DAILY_SWIPE_LIMIT - swipedToday, 0);
+
+    if (remaining === 0) {
+      return res.status(200).json({
+        jobs: [],
+        remaining: 0,
+        limit: DAILY_SWIPE_LIMIT,
+      });
+    }
+
+    const requested = Math.min(parseInt(req.query.limit as string) || 10, 20);
+    const size = Math.min(requested, remaining);
 
     const jobs = await Job.aggregate([
       { $match: { isActive: true } },
-      { $sample: { size: limit } },
+      { $sample: { size } },
       {
         $project: {
           _id: 1,
@@ -40,6 +63,8 @@ export const getDeck = async (
         sector: j.sector,
         tags: j.tags ?? [],
       })),
+      remaining,
+      limit: DAILY_SWIPE_LIMIT,
     });
   } catch (error) {
     next(error);
@@ -77,8 +102,20 @@ export const swipeJob = async (
       return res.status(404).json({ message: 'Job introuvable' });
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = getStartOfDay();
+
+    const swipedToday = await Swipe.countDocuments({
+      userId: req.user.id,
+      swipedAt: { $gte: startOfDay },
+    });
+
+    if (swipedToday >= DAILY_SWIPE_LIMIT) {
+      return res.status(429).json({
+        message: 'Quota journalier atteint, reviens demain !',
+        remaining: 0,
+        limit: DAILY_SWIPE_LIMIT,
+      });
+    }
 
     const alreadySwiped = await Swipe.findOne({
       userId: req.user.id,
@@ -99,6 +136,8 @@ export const swipeJob = async (
       swipedAt: new Date(),
     });
 
+    const remaining = DAILY_SWIPE_LIMIT - swipedToday - 1;
+
     return res.status(201).json({
       swipe: {
         id: swipe._id.toString(),
@@ -106,6 +145,8 @@ export const swipeJob = async (
         action: swipe.action,
         swipedAt: swipe.swipedAt,
       },
+      remaining,
+      limit: DAILY_SWIPE_LIMIT,
     });
   } catch (error) {
     next(error);
