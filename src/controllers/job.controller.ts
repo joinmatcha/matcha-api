@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 
 import { BilanCompetence } from '@/models/BilanCompetence';
 import { Job } from '@/models/Job';
+import { Swipe } from '@/models/Swipe';
 import { mapJobLabels } from '@/utils/jobLabelMapper';
 
 export const getDeck = async (
@@ -39,6 +40,72 @@ export const getDeck = async (
         sector: j.sector,
         tags: j.tags ?? [],
       })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const swipeJob = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { jobId, action } = req.body;
+
+    if (!jobId || !action) {
+      return res.status(400).json({ message: 'jobId et action sont requis' });
+    }
+
+    if (!['like', 'dislike'].includes(action)) {
+      return res
+        .status(400)
+        .json({ message: 'action doit être "like" ou "dislike"' });
+    }
+
+    if (!Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json({ message: 'jobId invalide' });
+    }
+
+    const job = await Job.findOne({ _id: jobId, isActive: true });
+    if (!job) {
+      return res.status(404).json({ message: 'Job introuvable' });
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const alreadySwiped = await Swipe.findOne({
+      userId: req.user.id,
+      jobId,
+      swipedAt: { $gte: startOfDay },
+    });
+
+    if (alreadySwiped) {
+      return res
+        .status(409)
+        .json({ message: "Ce métier a déjà été swipé aujourd'hui" });
+    }
+
+    const swipe = await Swipe.create({
+      userId: req.user.id,
+      jobId,
+      action,
+      swipedAt: new Date(),
+    });
+
+    return res.status(201).json({
+      swipe: {
+        id: swipe._id.toString(),
+        jobId: swipe.jobId.toString(),
+        action: swipe.action,
+        swipedAt: swipe.swipedAt,
+      },
     });
   } catch (error) {
     next(error);
