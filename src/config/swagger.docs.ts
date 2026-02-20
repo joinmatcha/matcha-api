@@ -499,6 +499,211 @@ export const swaggerDocs = {
  */
 `,
 
+  // ==================== JOBS ====================
+  jobGetDeck: `
+/**
+ * @swagger
+ * /api/job/deck:
+ *   get:
+ *     summary: Récupérer le deck de métiers à swiper
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 20
+ *         description: Nombre de métiers à retourner
+ *     responses:
+ *       200:
+ *         description: Deck récupéré avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 jobs:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: 507f1f77bcf86cd799439011
+ *                       title:
+ *                         type: string
+ *                         example: Développeur logiciel
+ *                       description:
+ *                         type: string
+ *                       sector:
+ *                         type: string
+ *                         example: Informatique
+ *                       tags:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                 remaining:
+ *                   type: integer
+ *                   example: 8
+ *                 limit:
+ *                   type: integer
+ *                   example: 20
+ *       401:
+ *         description: Non authentifié
+ */
+`,
+
+  jobSwipe: `
+/**
+ * @swagger
+ * /api/job/swipe:
+ *   post:
+ *     summary: Enregistrer un swipe sur un métier
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jobId
+ *               - action
+ *             properties:
+ *               jobId:
+ *                 type: string
+ *                 example: 507f1f77bcf86cd799439011
+ *               action:
+ *                 type: string
+ *                 enum: [like, dislike]
+ *                 example: like
+ *     responses:
+ *       201:
+ *         description: Swipe enregistré avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 swipe:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     jobId:
+ *                       type: string
+ *                     action:
+ *                       type: string
+ *                       enum: [like, dislike]
+ *                     swipedAt:
+ *                       type: string
+ *                       format: date-time
+ *                 remaining:
+ *                   type: integer
+ *                   example: 7
+ *                 limit:
+ *                   type: integer
+ *                   example: 20
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Non authentifié
+ *       404:
+ *         description: Métier introuvable
+ *       409:
+ *         description: Ce métier a déjà été swipé aujourd'hui
+ *       429:
+ *         description: Quota journalier atteint
+ */
+`,
+
+  // ==================== USERS (suite) ====================
+  usersGetPreferences: `
+/**
+ * @swagger
+ * /api/users/me/preferences:
+ *   get:
+ *     summary: Récupérer les préférences métiers calculées depuis l'historique de swipes
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Préférences récupérées avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 preferences:
+ *                   type: object
+ *                   properties:
+ *                     totalLikes:
+ *                       type: integer
+ *                       example: 12
+ *                     totalDislikes:
+ *                       type: integer
+ *                       example: 5
+ *                     topSectors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           key:
+ *                             type: string
+ *                             example: Informatique
+ *                           score:
+ *                             type: number
+ *                             example: 4.5
+ *                     topCompetences:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           key:
+ *                             type: string
+ *                           score:
+ *                             type: number
+ *                     topTags:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           key:
+ *                             type: string
+ *                           score:
+ *                             type: number
+ *                     topWorkConditions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           key:
+ *                             type: string
+ *                           score:
+ *                             type: number
+ *                     recentLikes:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           sector:
+ *                             type: string
+ *       401:
+ *         description: Non authentifié
+ */
+`,
+
   // ==================== REDIRECT ====================
   redirectResetPassword: `
 /**

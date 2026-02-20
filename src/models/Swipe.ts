@@ -39,7 +39,6 @@ const SwipeSchema = new Schema<SwipeDocument>(
   },
 );
 
-// Un user ne peut swiper un job qu'une seule fois par jour
 SwipeSchema.index({ userId: 1, jobId: 1, swipedAt: 1 });
 
 export const Swipe = model<SwipeDocument>('Swipe', SwipeSchema);

@@ -45,7 +45,6 @@ export const getDeck = async (
     const requested = Math.min(parseInt(req.query.limit as string) || 10, 20);
     const size = Math.min(requested, remaining);
 
-    // Jobs à exclure : swipés aujourd'hui + dislikes récents (cooldown)
     const cooldownDate = new Date();
     cooldownDate.setDate(cooldownDate.getDate() - DISLIKE_COOLDOWN_DAYS);
 
@@ -57,7 +56,6 @@ export const getDeck = async (
       ],
     }).distinct('jobId');
 
-    // Diversification par secteur : max MAX_JOBS_PER_SECTOR par secteur
     const jobs = await Job.aggregate([
       { $match: { isActive: true, _id: { $nin: excludedSwipes } } },
       { $group: { _id: '$sector', jobs: { $push: '$$ROOT' } } },
