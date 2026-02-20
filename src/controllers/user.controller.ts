@@ -5,7 +5,29 @@ import mongoose from 'mongoose';
 
 import User from '@/models/User';
 import { sendValidationEmail } from '@/services/email';
+import { computePreferences } from '@/services/preferences';
 import { UserRegisterInput } from '@/types/user';
+
+/**
+ * Get user preferences computed from swipe history
+ */
+export const getPreferences = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const preferences = await computePreferences(req.user.id);
+    res.status(200).json({ preferences });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * Create new user (registration)
