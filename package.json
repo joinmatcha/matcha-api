@@ -17,7 +17,8 @@
     "cleanup:users": "ts-node scripts/cleanup-unverified-users.ts --once",
     "seed:personality": "ts-node -r tsconfig-paths/register src/scripts/seed-personality.ts",
     "seed:bilan": "ts-node -r tsconfig-paths/register src/scripts/seed-bilan.ts",
-    "seed:jobs": "ts-node -r tsconfig-paths/register src/scripts/seed-jobs.ts"
+    "seed:jobs": "ts-node -r tsconfig-paths/register src/scripts/seed-jobs.ts",
+    "reset:swipes": "ts-node -r tsconfig-paths/register src/scripts/reset-swipes.ts"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.2",
