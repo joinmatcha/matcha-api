@@ -1,7 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 import { Types } from 'mongoose';
 
-import { DAILY_SWIPE_LIMIT } from '@/constants/swipe';
+import {
+  DAILY_SWIPE_LIMIT,
+  DISLIKE_COOLDOWN_DAYS,
+  MAX_JOBS_PER_SECTOR,
+} from '@/constants/swipe';
 import { BilanCompetence } from '@/models/BilanCompetence';
 import { Job } from '@/models/Job';
 import { Swipe } from '@/models/Swipe';
@@ -41,18 +45,27 @@ export const getDeck = async (
     const requested = Math.min(parseInt(req.query.limit as string) || 10, 20);
     const size = Math.min(requested, remaining);
 
+    // Jobs à exclure : swipés aujourd'hui + dislikes récents (cooldown)
+    const cooldownDate = new Date();
+    cooldownDate.setDate(cooldownDate.getDate() - DISLIKE_COOLDOWN_DAYS);
+
+    const excludedSwipes = await Swipe.find({
+      userId: req.user.id,
+      $or: [
+        { swipedAt: { $gte: getStartOfDay() } },
+        { action: 'dislike', swipedAt: { $gte: cooldownDate } },
+      ],
+    }).distinct('jobId');
+
+    // Diversification par secteur : max MAX_JOBS_PER_SECTOR par secteur
     const jobs = await Job.aggregate([
-      { $match: { isActive: true } },
+      { $match: { isActive: true, _id: { $nin: excludedSwipes } } },
+      { $group: { _id: '$sector', jobs: { $push: '$$ROOT' } } },
+      { $project: { jobs: { $slice: ['$jobs', MAX_JOBS_PER_SECTOR] } } },
+      { $unwind: '$jobs' },
+      { $replaceRoot: { newRoot: '$jobs' } },
       { $sample: { size } },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          description: 1,
-          sector: 1,
-          tags: 1,
-        },
-      },
+      { $project: { _id: 1, title: 1, description: 1, sector: 1, tags: 1 } },
     ]);
 
     return res.status(200).json({
