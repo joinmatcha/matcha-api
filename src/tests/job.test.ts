@@ -5,6 +5,7 @@ import request from 'supertest';
 import app from '@/app';
 import { BilanCompetence } from '@/models/BilanCompetence';
 import { Job } from '@/models/Job';
+import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 
 const createUserAndGetToken = async () => {
@@ -75,6 +76,318 @@ describe('Job routes', () => {
 
   afterAll(async () => {
     await mongoose.connection.close();
+  });
+
+  describe('GET /api/job/deck', () => {
+    it('should return 401 if no token is provided', async () => {
+      const res = await request(app).get('/api/job/deck');
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should return a deck with jobs, remaining and limit', async () => {
+      const { token } = await createUserAndGetToken();
+
+      await Job.create([
+        {
+          title: 'Développeur·se web',
+          isActive: true,
+          growthOutlook: 'stable',
+          sector: 'Tech',
+        },
+        {
+          title: 'Designer UX',
+          isActive: true,
+          growthOutlook: 'stable',
+          sector: 'Design',
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/job/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs).toHaveLength(2);
+      expect(res.body.remaining).toBe(20);
+      expect(res.body.limit).toBe(20);
+      expect(res.body.jobs[0]).toMatchObject({
+        id: expect.any(String),
+        title: expect.any(String),
+      });
+    });
+
+    it('should return empty deck when daily quota is reached', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      await Promise.all(
+        Array.from({ length: 20 }).map(() =>
+          Swipe.create({
+            userId: user._id,
+            jobId: new mongoose.Types.ObjectId(),
+            action: 'like',
+            swipedAt: new Date(),
+          }),
+        ),
+      );
+
+      const res = await request(app)
+        .get('/api/job/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs).toHaveLength(0);
+      expect(res.body.remaining).toBe(0);
+      expect(res.body.limit).toBe(20);
+    });
+
+    it('should exclude jobs already swiped today', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      const job = await Job.create({
+        title: 'Développeur·se web',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      await Swipe.create({
+        userId: user._id,
+        jobId: job._id,
+        action: 'like',
+        swipedAt: new Date(),
+      });
+
+      const res = await request(app)
+        .get('/api/job/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs.map((j: any) => j.id)).not.toContain(
+        job._id.toString(),
+      );
+    });
+
+    it('should exclude jobs disliked within the last 30 days', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      const job = await Job.create({
+        title: 'Développeur·se web',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      const recentDislike = new Date();
+      recentDislike.setDate(recentDislike.getDate() - 10);
+
+      await Swipe.create({
+        userId: user._id,
+        jobId: job._id,
+        action: 'dislike',
+        swipedAt: recentDislike,
+      });
+
+      const res = await request(app)
+        .get('/api/job/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs.map((j: any) => j.id)).not.toContain(
+        job._id.toString(),
+      );
+    });
+
+    it('should include jobs disliked more than 30 days ago', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      const job = await Job.create({
+        title: 'Développeur·se web',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      const oldDislike = new Date();
+      oldDislike.setDate(oldDislike.getDate() - 31);
+
+      await Swipe.create({
+        userId: user._id,
+        jobId: job._id,
+        action: 'dislike',
+        swipedAt: oldDislike,
+      });
+
+      const res = await request(app)
+        .get('/api/job/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs.map((j: any) => j.id)).toContain(job._id.toString());
+    });
+  });
+
+  describe('POST /api/job/swipe', () => {
+    it('should return 401 if no token is provided', async () => {
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .send({
+          jobId: new mongoose.Types.ObjectId().toString(),
+          action: 'like',
+        });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should return 400 if jobId is missing', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'like' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 if action is missing', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: new mongoose.Types.ObjectId().toString() });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 if action is invalid', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jobId: new mongoose.Types.ObjectId().toString(),
+          action: 'neutral',
+        });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 if jobId is not a valid ObjectId', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: 'not-an-id', action: 'like' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 404 if job does not exist', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jobId: new mongoose.Types.ObjectId().toString(),
+          action: 'like',
+        });
+
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 201 and record a like', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const job = await Job.create({
+        title: 'Dev',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: job._id.toString(), action: 'like' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.swipe.action).toBe('like');
+      expect(res.body.swipe.jobId).toBe(job._id.toString());
+      expect(res.body.remaining).toBe(19);
+      expect(res.body.limit).toBe(20);
+    });
+
+    it('should return 201 and record a dislike', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const job = await Job.create({
+        title: 'Dev',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: job._id.toString(), action: 'dislike' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.swipe.action).toBe('dislike');
+    });
+
+    it('should return 429 when daily quota is reached', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      await Promise.all(
+        Array.from({ length: 20 }).map(() =>
+          Swipe.create({
+            userId: user._id,
+            jobId: new mongoose.Types.ObjectId(),
+            action: 'like',
+            swipedAt: new Date(),
+          }),
+        ),
+      );
+
+      const job = await Job.create({
+        title: 'Dev',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: job._id.toString(), action: 'like' });
+
+      expect(res.status).toBe(429);
+      expect(res.body.remaining).toBe(0);
+    });
+
+    it('should return 409 if job was already swiped today', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      const job = await Job.create({
+        title: 'Dev',
+        isActive: true,
+        growthOutlook: 'stable',
+      });
+
+      await Swipe.create({
+        userId: user._id,
+        jobId: job._id,
+        action: 'like',
+        swipedAt: new Date(),
+      });
+
+      const res = await request(app)
+        .post('/api/job/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: job._id.toString(), action: 'like' });
+
+      expect(res.status).toBe(409);
+    });
   });
 
   describe('GET /api/job/recommended', () => {

@@ -1,7 +1,10 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import request from 'supertest';
 
 import app from '@/app';
+import PersonalityTemplate from '@/models/PersonalityTemplate';
+import PersonalityTest from '@/models/PersonalityTest';
 import User from '@/models/User';
 
 const BASE_URL = '/api/profile';
@@ -34,6 +37,66 @@ const createUserAndGetToken = async () => {
 
   return { token, password };
 };
+
+describe('GET /api/profile', () => {
+  it('should return 401 if no token is provided', async () => {
+    const res = await request(app).get(BASE_URL);
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toMatch(/missing/i);
+  });
+
+  it('should return user profile with personality null when no test exists', async () => {
+    const { token } = await createUserAndGetToken();
+
+    const res = await request(app)
+      .get(BASE_URL)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeDefined();
+    expect(res.body.user.personality).toBeNull();
+  });
+
+  it('should return user profile with personality data when test exists', async () => {
+    const { token } = await createUserAndGetToken();
+
+    const user = await User.findOne({ pendingEmail: { $exists: false } }).sort({
+      createdAt: -1,
+    });
+    if (!user) throw new Error('User not found');
+
+    const template = await PersonalityTemplate.create({
+      title: 'MBTI Test',
+      isActive: true,
+      version: '1.0',
+      questions: [{ id: 'q1', text: '...', dimension: 'EI' }],
+      profiles: [],
+    });
+
+    const test = await PersonalityTest.create({
+      userId: user._id,
+      templateId: template._id,
+      templateVersion: '1.0',
+      type: 'ENTP',
+      result: 'Innovateur',
+      traits: ['Créatif'],
+      weaknesses: ['Impulsif'],
+    });
+
+    user.personalityTestId = test._id as any;
+    await user.save();
+
+    const res = await request(app)
+      .get(BASE_URL)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.personality).not.toBeNull();
+    expect(res.body.user.personality.type).toBe('ENTP');
+    expect(res.body.user.personality.label).toBe('Innovateur');
+  });
+});
 
 describe('PATCH /api/profile', () => {
   it('should update user profile successfully', async () => {

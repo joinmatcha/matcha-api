@@ -5,6 +5,7 @@ import request from 'supertest';
 import app from '@/app';
 import PersonalityTemplate from '@/models/PersonalityTemplate';
 import PersonalityTest from '@/models/PersonalityTest';
+import User from '@/models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'testsecret';
 
@@ -49,6 +50,76 @@ describe('Personality API', () => {
         .get('/api/personality/active')
         .set(authHeader());
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('POST /api/personality/reset', () => {
+    it('should return 401 if no token is provided', async () => {
+      const res = await request(app).post('/api/personality/reset');
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should be idempotent when user has no test', async () => {
+      const user = await User.create({
+        email: `reset-notest-${Date.now()}@example.com`,
+        passwordHash: 'hashed',
+        firstName: 'Test',
+        lastName: 'User',
+        consentAccepted: true,
+      });
+
+      const token = jwt.sign({ id: user._id }, JWT_SECRET);
+
+      const res = await request(app)
+        .post('/api/personality/reset')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe('Personality test reset');
+    });
+
+    it('should delete the personality test and clear personalityTestId on user', async () => {
+      const user = await User.create({
+        email: `reset-withtest-${Date.now()}@example.com`,
+        passwordHash: 'hashed',
+        firstName: 'Test',
+        lastName: 'User',
+        consentAccepted: true,
+      });
+
+      const template = await PersonalityTemplate.create({
+        title: 'MBTI Test',
+        isActive: true,
+        version: '1.0',
+        questions: [{ id: 'q1', text: '...', dimension: 'EI' }],
+        profiles: [],
+      });
+
+      const test = await PersonalityTest.create({
+        userId: user._id,
+        templateId: template._id,
+        templateVersion: '1.0',
+        type: 'ENTP',
+        result: 'Innovateur',
+      });
+
+      user.personalityTestId = test._id as any;
+      await user.save();
+
+      const token = jwt.sign({ id: user._id }, JWT_SECRET);
+
+      const res = await request(app)
+        .post('/api/personality/reset')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+
+      const deletedTest = await PersonalityTest.findById(test._id);
+      expect(deletedTest).toBeNull();
+
+      const updatedUser = await User.findById(user._id);
+      expect(updatedUser?.personalityTestId).toBeUndefined();
     });
   });
 

@@ -1,9 +1,37 @@
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import request from 'supertest';
 
 import app from '@/app';
+import { Job } from '@/models/Job';
+import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
+
+const createUserAndGetToken = async () => {
+  const email = `prefs-test-${Date.now()}@example.com`;
+
+  const res = await request(app).post('/api/users').send({
+    firstName: 'Test',
+    lastName: 'User',
+    email,
+    password: 'StrongPassw0rd!',
+    consentAccepted: true,
+  });
+
+  const user = await User.findById(res.body.userId);
+  if (!user) throw new Error('User not found');
+
+  user.isEmailVerified = true;
+  await user.save();
+
+  const token = jwt.sign(
+    { id: user._id },
+    process.env.JWT_SECRET || 'test-secret',
+  );
+
+  return { user, token };
+};
 
 describe('POST /api/users', () => {
   const basePayload = {
@@ -112,6 +140,88 @@ describe('GET /api/users/:id', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('message', 'Invalid user ID');
+  });
+});
+
+describe('GET /api/users/me/preferences', () => {
+  it('should return 401 if no token is provided', async () => {
+    const res = await request(app).get('/api/users/me/preferences');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should return empty preferences when user has no swipes', async () => {
+    const { token } = await createUserAndGetToken();
+
+    const res = await request(app)
+      .get('/api/users/me/preferences')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.preferences.totalLikes).toBe(0);
+    expect(res.body.preferences.totalDislikes).toBe(0);
+    expect(res.body.preferences.topSectors).toHaveLength(0);
+    expect(res.body.preferences.recentLikes).toHaveLength(0);
+  });
+
+  it('should return computed preferences based on swipe history', async () => {
+    const { user, token } = await createUserAndGetToken();
+
+    const job = await Job.create({
+      title: 'Développeur·se web',
+      isActive: true,
+      growthOutlook: 'stable',
+      sector: 'Tech',
+      competences: ['analysis'],
+      tags: ['web'],
+      workConditions: ['remote'],
+    });
+
+    await Swipe.create({
+      userId: user._id,
+      jobId: job._id,
+      action: 'like',
+      swipedAt: new Date(),
+    });
+
+    const res = await request(app)
+      .get('/api/users/me/preferences')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.preferences.totalLikes).toBe(1);
+    expect(res.body.preferences.totalDislikes).toBe(0);
+    expect(res.body.preferences.topSectors[0].key).toBe('Tech');
+    expect(res.body.preferences.recentLikes[0].title).toBe(
+      'Développeur·se web',
+    );
+  });
+
+  it('should count dislikes separately from likes', async () => {
+    const { user, token } = await createUserAndGetToken();
+
+    const job = await Job.create({
+      title: 'Designer UX',
+      isActive: true,
+      growthOutlook: 'stable',
+      sector: 'Design',
+    });
+
+    await Swipe.create({
+      userId: user._id,
+      jobId: job._id,
+      action: 'dislike',
+      swipedAt: new Date(),
+    });
+
+    const res = await request(app)
+      .get('/api/users/me/preferences')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.preferences.totalLikes).toBe(0);
+    expect(res.body.preferences.totalDislikes).toBe(1);
+    expect(res.body.preferences.recentLikes).toHaveLength(0);
   });
 });
 
