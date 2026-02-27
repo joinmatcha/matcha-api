@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { redirectToApp } from '@/controllers/redirect.controller';
+import { redirectToApp } from '@/modules/redirect/controller';
 
 const router = Router();
 

@@ -1,20 +1,22 @@
 import nodemailer, { Transporter } from 'nodemailer';
 
-const isProduction = process.env.NODE_ENV === 'production';
-const APP_NAME = process.env.APP_NAME || 'Matcha';
-const SMTP_USER = process.env.SMTP_USER || 'no-reply@matcha.com';
-const API_URL = process.env.API_URL || 'http://localhost:3000';
-const FRONTEND_URL = process.env.FRONTEND_URL;
+import { env } from '@/config/env';
+
+const isProduction = env.NODE_ENV === 'production';
+const APP_NAME = env.APP_NAME;
+const SMTP_USER = env.SMTP_USER;
+const API_URL = env.API_URL;
+const FRONTEND_URL = env.FRONTEND_URL;
 
 const getTransporter = async (): Promise<Transporter> => {
   if (isProduction) {
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
       secure: false,
       auth: {
-        user: process.env.SMTP_USER!,
-        pass: process.env.SMTP_PASS!,
+        user: env.SMTP_USER,
+        pass: env.SMTP_PASS!,
       },
     });
   }

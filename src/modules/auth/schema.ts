@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { passwordSchema } from './password.schema';
+import { passwordSchema } from '@/modules/shared/password.schema';
 
 export const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email format' }),

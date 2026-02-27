@@ -58,7 +58,19 @@ PORT=3000
 MONGODB_URI=mongodb://mongo:27017/matcha
 APP_NAME=matcha-api
 NODE_ENV=development
+JWT_SECRET=replace_with_a_long_random_secret
+CLIENT_URL=http://localhost:8081
+FRONTEND_URL=http://localhost:8081
 ```
+
+## Checklist pré-déploiement
+
+- Définir un `JWT_SECRET` fort (minimum 32 caractères aléatoires).
+- Remplacer toutes les URLs locales (`API_URL`, `FRONTEND_URL`, `CLIENT_URL`) par les URLs publiques.
+- Configurer un SMTP réel (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`) et tester les emails de vérification/reset.
+- Vérifier que le CORS n’accepte pas `*` en production.
+- Vérifier que `NODE_ENV=production` est bien utilisé sur l’API.
+- Exécuter `yarn lint` puis `yarn test` avant release.
 
 ---
 
@@ -68,11 +80,10 @@ NODE_ENV=development
 matcha-api/
 ├── src/
 │   ├── config/          # Connexions (ex: MongoDB)
-│   ├── controllers/     # Logique métier des routes
+│   ├── modules/         # API par domaine (route/controller/schema)
 │   ├── models/          # Schémas de validation (zod)
-│   ├── routes/          # Déclaration des routes Express
 │   ├── middlewares/     # Middlewares personnalisés
-│   ├── services/        # Logique métier, accès DB
+│   ├── services/        # Services transverses
 │   ├── utils/           # Fonctions utilitaires (logs, validations...)
 │   ├── tests/           # Tests unitaires (Jest)
 │   ├── app.ts           # App Express : routes, middlewares, etc.
@@ -95,10 +106,11 @@ matcha-api/
 
 ### 🧱 Structure du code
 
-- **MVC + services** : aucune logique métier ou DB dans les routes.
-- **Controllers** = orchestrateurs simples, sans logique métier profonde.
-- **Services** = couche métier, appel au driver `mongodb`.
-- **Validations** faites dans `models/` avec `zod`.
+- **Architecture modulaire par domaine** : `modules/<domaine>/{route,controller,schema}`.
+- **Routes** = wiring HTTP uniquement.
+- **Controllers** = orchestration, pas de logique métier lourde.
+- **Services** = logique transverse/métier réutilisable.
+- **Validations** faites avec `zod` dans les `schema.ts` de module.
 - **Middlewares** = réutilisables, testables, sans effet de bord.
 - **data/mongo** = est un volume Docker permettant de stocker durablement les données MongoDB sur la machine hôte, même en cas de redémarrage du conteneur.
 

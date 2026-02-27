@@ -8,6 +8,9 @@ import { Job } from '@/models/Job';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 
+const hashToken = (rawToken: string): string =>
+  crypto.createHash('sha256').update(rawToken).digest('hex');
+
 const createUserAndGetToken = async () => {
   const email = `prefs-test-${Date.now()}@example.com`;
 
@@ -57,7 +60,8 @@ describe('POST /api/users', () => {
   });
 
   it('should not create a user with missing required fields', async () => {
-    const { email, ...incompletePayload } = basePayload;
+    const { ...incompletePayload } = basePayload;
+    delete (incompletePayload as { email?: string }).email;
 
     const res = await request(app).post('/api/users').send(incompletePayload);
 
@@ -105,41 +109,96 @@ describe('POST /api/users', () => {
 
 describe('GET /api/users/:id', () => {
   let userId: string;
+  let token: string;
+  let otherUserId: string;
 
   beforeEach(async () => {
-    const user = new User({
-      email: 'test@example.com',
+    const { user, token: authToken } = await createUserAndGetToken();
+    userId = user._id.toString();
+    token = authToken;
+
+    const otherUser = await User.create({
+      email: `other-${Date.now()}@example.com`,
       passwordHash: 'hashed_password',
-      firstName: 'John',
-      lastName: 'Doe',
+      firstName: 'Other',
+      lastName: 'User',
       consentAccepted: true,
+      isEmailVerified: true,
     });
-    const savedUser = await user.save();
-    userId = savedUser._id.toString();
+    otherUserId = otherUser._id.toString();
   });
 
-  it('should return a user when given a valid ID', async () => {
+  it('should return 401 when no token is provided', async () => {
     const res = await request(app).get(`/api/users/${userId}`);
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should return the authenticated user when given own id', async () => {
+    const res = await request(app)
+      .get(`/api/users/${userId}`)
+      .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('_id', userId);
-    expect(res.body).toHaveProperty('email', 'test@example.com');
+    expect(res.body).toHaveProperty('email');
     expect(res.body).not.toHaveProperty('passwordHash');
+    expect(res.body).not.toHaveProperty('emailVerificationToken');
+    expect(res.body).not.toHaveProperty('resetPasswordTokenHash');
+  });
+
+  it('should return 403 when requesting another user id', async () => {
+    const res = await request(app)
+      .get(`/api/users/${otherUserId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toHaveProperty('message', 'Forbidden');
   });
 
   it('should return 404 when user does not exist', async () => {
     const nonExistentId = new mongoose.Types.ObjectId();
-    const res = await request(app).get(`/api/users/${nonExistentId}`);
+    const tokenForMissingUser = jwt.sign(
+      { id: nonExistentId.toString() },
+      process.env.JWT_SECRET || 'test-secret',
+    );
+
+    const res = await request(app)
+      .get(`/api/users/${nonExistentId}`)
+      .set('Authorization', `Bearer ${tokenForMissingUser}`);
 
     expect(res.status).toBe(404);
     expect(res.body).toHaveProperty('message', 'User not found');
   });
 
   it('should return 400 for invalid MongoDB ID', async () => {
-    const res = await request(app).get('/api/users/invalid-id');
+    const res = await request(app)
+      .get('/api/users/invalid-id')
+      .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('message', 'Invalid user ID');
+  });
+});
+
+describe('GET /api/users/me', () => {
+  it('should return 401 when no token is provided', async () => {
+    const res = await request(app).get('/api/users/me');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should return the authenticated user profile', async () => {
+    const { user, token } = await createUserAndGetToken();
+
+    const res = await request(app)
+      .get('/api/users/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('_id', user._id.toString());
+    expect(res.body).toHaveProperty('email', user.email);
+    expect(res.body).not.toHaveProperty('passwordHash');
   });
 });
 
@@ -235,7 +294,7 @@ describe('GET /api/users/verify-email', () => {
       consentAccepted: true,
       isEmailVerified: true,
       pendingEmail: 'updated@example.com',
-      emailVerificationToken: token,
+      emailVerificationToken: hashToken(token),
       emailVerificationTokenExpires: new Date(Date.now() + 3600 * 1000),
     });
 
@@ -263,7 +322,7 @@ describe('GET /api/users/verify-email', () => {
       passwordHash: 'hashed',
       consentAccepted: true,
       isEmailVerified: false,
-      emailVerificationToken: token,
+      emailVerificationToken: hashToken(token),
       emailVerificationTokenExpires: new Date(Date.now() + 3600 * 1000),
     });
 
@@ -284,7 +343,7 @@ describe('GET /api/users/verify-email', () => {
       passwordHash: 'hashed',
       consentAccepted: true,
       isEmailVerified: true,
-      emailVerificationToken: token,
+      emailVerificationToken: hashToken(token),
       emailVerificationTokenExpires: new Date(Date.now() - 3600 * 1000), // expired
     });
 

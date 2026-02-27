@@ -1,11 +1,11 @@
 import express from 'express';
 
+import { requireAuth } from '@/middlewares/auth.middleware';
 import {
   getActiveTest,
   resetTest,
   submitTest,
-} from '@/controllers/personality.controller';
-import { requireAuth } from '@/middlewares/auth.middleware';
+} from '@/modules/personality/controller';
 
 const router = express.Router();
 

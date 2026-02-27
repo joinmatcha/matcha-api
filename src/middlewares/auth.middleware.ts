@@ -1,10 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('Missing JWT_SECRET in environment variables');
-}
+import { env } from '@/config/env';
 
 interface JwtPayload {
   id: string;
@@ -36,7 +33,7 @@ export const requireAuth = (
   const token = authHeader.split(' ')[1];
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
     req.user = payload;
     next();
   } catch (err) {

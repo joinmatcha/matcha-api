@@ -1,19 +1,19 @@
 import { Router } from 'express';
 
+import { requireAuth } from '@/middlewares/auth.middleware';
+import { validate } from '@/middlewares/validate.middleware';
 import {
   changePassword,
   deleteAccount,
   getProfile,
   requestEmailChange,
   updateProfile,
-} from '@/controllers/profile.controller';
-import { requireAuth } from '@/middlewares/auth.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@/modules/profile/controller';
 import {
   changePasswordSchema,
   requestEmailChangeSchema,
   updateProfileSchema,
-} from '@/validators/profile.schema';
+} from '@/modules/profile/schema';
 
 const router = Router();
 

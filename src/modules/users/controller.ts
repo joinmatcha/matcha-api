@@ -7,6 +7,10 @@ import User from '@/models/User';
 import { sendValidationEmail } from '@/services/email';
 import { computePreferences } from '@/services/preferences';
 import { UserRegisterInput } from '@/types/user';
+import { hashToken } from '@/utils/token';
+
+const USER_SAFE_FIELDS =
+  '_id email firstName lastName birthYear gender subscription jobTypes locationPref remote avatarUrl addressStreet addressCity addressPostalCode addressCountry location isEmailVerified consentAccepted consentTimestamp createdAt updatedAt';
 
 /**
  * Get user preferences computed from swipe history
@@ -49,6 +53,7 @@ export const createUser = async (
 
     const passwordHash = await bcrypt.hash(password, 10);
     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationTokenHash = hashToken(emailVerificationToken);
 
     const user = await User.create({
       email,
@@ -56,7 +61,7 @@ export const createUser = async (
       firstName,
       lastName,
       consentAccepted,
-      emailVerificationToken,
+      emailVerificationToken: emailVerificationTokenHash,
       emailVerificationTokenExpires: new Date(Date.now() + 3600 * 1000), // 1h
     });
 
@@ -84,6 +89,11 @@ export const getUserById = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -91,7 +101,36 @@ export const getUserById = async (
       return;
     }
 
-    const user = await User.findById(id).select('-passwordHash');
+    if (req.user.id !== id) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
+
+    const user = await User.findById(id).select(USER_SAFE_FIELDS);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMe = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const user = await User.findById(userId).select(USER_SAFE_FIELDS);
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;
@@ -119,8 +158,10 @@ export const verifyEmail = async (
   }
 
   try {
+    const tokenHash = hashToken(token);
+
     const user = await User.findOne({
-      emailVerificationToken: token,
+      emailVerificationToken: tokenHash,
       emailVerificationTokenExpires: { $gt: new Date() },
     });
 

@@ -1,15 +1,12 @@
 import mongoose from 'mongoose';
 
-const { MONGODB_URI, MONGODB_DB, MONGODB_DB_TEST, NODE_ENV } = process.env;
+import { env } from '@/config/env';
 
-const dbName =
-  NODE_ENV === 'test'
-    ? MONGODB_DB_TEST || 'matcha_test'
-    : MONGODB_DB || 'matcha_dev';
+const dbName = env.NODE_ENV === 'test' ? env.MONGODB_DB_TEST : env.MONGODB_DB;
 
-const baseUri = MONGODB_URI?.endsWith('/')
-  ? MONGODB_URI.slice(0, -1)
-  : MONGODB_URI;
+const baseUri = env.MONGODB_URI.endsWith('/')
+  ? env.MONGODB_URI.slice(0, -1)
+  : env.MONGODB_URI;
 const uri = `${baseUri}/${dbName}`;
 
 export const connectDB = async (): Promise<void> => {

@@ -1,17 +1,17 @@
 import { Router } from 'express';
 
+import { requireAuth } from '@/middlewares/auth.middleware';
+import { validate } from '@/middlewares/validate.middleware';
 import {
   generateBilan,
   getMyBilan,
   getQuestions,
   submitAnswers,
-} from '@/controllers/bilan.controller';
-import { requireAuth } from '@/middlewares/auth.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@/modules/bilan/controller';
 import {
   generateBilanSchema,
   submitAnswersSchema,
-} from '@/validators/bilan.schema';
+} from '@/modules/bilan/schema';
 
 const router = Router();
 

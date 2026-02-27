@@ -12,6 +12,7 @@ import User from '@/models/User';
 import { sendEmailChangeVerification } from '@/services/email';
 import { UserProfile, UserProfileUpdateInput } from '@/types/user';
 import { mapUserToProfile } from '@/utils/mapUserToProfile';
+import { hashToken } from '@/utils/token';
 
 export const updateProfile = async (
   req: Request,
@@ -244,12 +245,13 @@ export const requestEmailChange = async (
 
     // Génération du token
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.pendingEmail = trimmed;
-    user.emailVerificationToken = token;
+    user.emailVerificationToken = tokenHash;
     user.emailVerificationTokenExpires = new Date(Date.now() + 1000 * 60 * 15);
 
     await user.save();

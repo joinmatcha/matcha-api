@@ -8,8 +8,9 @@ export const errorHandler = (
   err: AppError,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ): void => {
+  void next;
   const statusCode = err.status || 500;
 
   res.status(statusCode).json({

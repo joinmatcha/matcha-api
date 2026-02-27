@@ -1,7 +1,7 @@
 import { Document, Types } from 'mongoose';
 import z from 'zod';
 
-import { updateProfileSchema } from '@/validators/profile.schema';
+import { updateProfileSchema } from '@/modules/profile/schema';
 
 export interface UserProfile {
   _id: string;

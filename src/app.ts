@@ -3,34 +3,21 @@ import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 
+import { env } from '@/config/env';
 import swaggerSpec from '@/config/swagger';
 import { errorHandler } from '@/middlewares/error.middleware';
-import authRoutes from '@/routes/auth.routes';
-import bilanRoutes from '@/routes/bilan.routes';
-import healthRoutes from '@/routes/health.routes';
-import jobRoutes from '@/routes/job.routes';
-import personalityRoutes from '@/routes/personality.routes';
-import profileRoutes from '@/routes/profile.routes';
-import redirectRoutes from '@/routes/redirect.routes';
-import userRoutes from '@/routes/user.routes';
+import { registerRoutes } from '@/modules';
 
 const app = express();
 
 app.use(express.json());
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+app.use(cors({ origin: env.CLIENT_URL }));
 app.use(helmet());
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use('/api/auth', authRoutes);
-app.use('/health', healthRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api', redirectRoutes);
-app.use('/api/personality', personalityRoutes);
-app.use('/api/bilan', bilanRoutes);
-app.use('/api/job', jobRoutes);
+registerRoutes(app);
 
 app.use(errorHandler);
 

@@ -7,6 +7,7 @@ dotenv.config({ path: '.env.test' });
 jest.mock('@/services/email', () => ({
   sendValidationEmail: jest.fn().mockResolvedValue(undefined),
   sendResetPasswordEmail: jest.fn().mockResolvedValue(undefined),
+  sendEmailChangeVerification: jest.fn().mockResolvedValue(undefined),
 }));
 
 let mongo: MongoMemoryServer;

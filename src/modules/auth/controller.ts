@@ -1,9 +1,9 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
-import { validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
 
+import { env } from '@/config/env';
 import User from '@/models/User';
 import { sendResetPasswordEmail } from '@/services/email';
 import { RequestPasswordResetInput, ResetPasswordInput } from '@/types/user';
@@ -19,11 +19,6 @@ export const login = async (
   next: NextFunction,
 ): Promise<Response | void> => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
@@ -45,7 +40,7 @@ export const login = async (
 
     const token = jwt.sign(
       { id: user._id, email: user.email },
-      process.env.JWT_SECRET || 'changeme',
+      env.JWT_SECRET,
       { expiresIn: '24h' },
     );
 

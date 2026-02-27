@@ -1,12 +1,12 @@
 import { Router } from 'express';
 
+import { requireAuth } from '@/middlewares/auth.middleware';
 import {
   getDeck,
   getJobById,
   getRecommendedJobs,
   swipeJob,
-} from '@/controllers/job.controller';
-import { requireAuth } from '@/middlewares/auth.middleware';
+} from '@/modules/job/controller';
 
 const router = Router();
 
