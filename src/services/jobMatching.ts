@@ -22,7 +22,15 @@ export async function findRecommendedJobs(
   limit = 4,
   minScore = 60,
 ): Promise<RecommendedJob[]> {
-  const jobs = await Job.find({ isActive: true });
+  const jobs = await Job.find({
+    isActive: true,
+    riasec: { $in: input.interestsProfile },
+    competences: { $in: input.competenceStrengths },
+  })
+    .select(
+      '_id title description sector riasec competences softSkills values workConditions',
+    )
+    .lean();
 
   const ranked: RecommendedJob[] = [];
 

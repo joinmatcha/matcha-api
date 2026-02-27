@@ -503,7 +503,7 @@ export const swaggerDocs = {
   jobGetDeck: `
 /**
  * @swagger
- * /api/job/deck:
+ * /api/jobs/deck:
  *   get:
  *     summary: Récupérer le deck de métiers à swiper
  *     tags: [Jobs]
@@ -560,7 +560,7 @@ export const swaggerDocs = {
   jobSwipe: `
 /**
  * @swagger
- * /api/job/swipe:
+ * /api/jobs/swipe:
  *   post:
  *     summary: Enregistrer un swipe sur un métier
  *     tags: [Jobs]
@@ -708,7 +708,7 @@ export const swaggerDocs = {
   redirectResetPassword: `
 /**
  * @swagger
- * /api/redirect-reset-password:
+ * /api/auth/password-reset/redirect:
  *   get:
  *     summary: Rediriger vers l'application pour la réinitialisation du mot de passe
  *     tags: [Redirect]

@@ -67,7 +67,7 @@ const createMinimalBilan = async ({
   });
 };
 
-describe('Job routes', () => {
+describe('Jobs routes', () => {
   beforeEach(async () => {
     await Job.deleteMany({});
     await BilanCompetence.deleteMany({});
@@ -78,9 +78,9 @@ describe('Job routes', () => {
     await mongoose.connection.close();
   });
 
-  describe('GET /api/job/deck', () => {
+  describe('GET /api/jobs/deck', () => {
     it('should return 401 if no token is provided', async () => {
-      const res = await request(app).get('/api/job/deck');
+      const res = await request(app).get('/api/jobs/deck');
 
       expect(res.status).toBe(401);
     });
@@ -104,7 +104,7 @@ describe('Job routes', () => {
       ]);
 
       const res = await request(app)
-        .get('/api/job/deck')
+        .get('/api/jobs/deck')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -132,7 +132,7 @@ describe('Job routes', () => {
       );
 
       const res = await request(app)
-        .get('/api/job/deck')
+        .get('/api/jobs/deck')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -158,7 +158,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get('/api/job/deck')
+        .get('/api/jobs/deck')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -187,7 +187,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get('/api/job/deck')
+        .get('/api/jobs/deck')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -216,7 +216,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get('/api/job/deck')
+        .get('/api/jobs/deck')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -224,14 +224,77 @@ describe('Job routes', () => {
     });
   });
 
-  describe('POST /api/job/swipe', () => {
-    it('should return 401 if no token is provided', async () => {
+  describe('GET /api/jobs', () => {
+    it('should list active jobs with normalized shape', async () => {
+      const { token } = await createUserAndGetToken();
+
+      await Job.create([
+        {
+          title: 'Développeur backend',
+          isActive: true,
+          growthOutlook: 'growing',
+          sector: 'Tech',
+          tags: ['Node.js'],
+        },
+        {
+          title: 'Commercial',
+          isActive: false,
+          growthOutlook: 'stable',
+          sector: 'Sales',
+          tags: ['B2B'],
+        },
+      ]);
+
       const res = await request(app)
-        .post('/api/job/swipe')
-        .send({
-          jobId: new mongoose.Types.ObjectId().toString(),
-          action: 'like',
-        });
+        .get('/api/jobs')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.jobs)).toBe(true);
+      expect(res.body.jobs).toHaveLength(1);
+      expect(res.body.jobs[0]).toMatchObject({
+        id: expect.any(String),
+        title: 'Développeur backend',
+        sector: 'Tech',
+        growthOutlook: 'growing',
+      });
+    });
+
+    it('should filter jobs with q and sector', async () => {
+      const { token } = await createUserAndGetToken();
+
+      await Job.create([
+        {
+          title: 'Développeur frontend',
+          isActive: true,
+          growthOutlook: 'stable',
+          sector: 'Tech',
+        },
+        {
+          title: 'Chef de projet marketing',
+          isActive: true,
+          growthOutlook: 'stable',
+          sector: 'Marketing',
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/jobs')
+        .query({ q: 'développeur', sector: 'Tech' })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs).toHaveLength(1);
+      expect(res.body.jobs[0].title).toBe('Développeur frontend');
+    });
+  });
+
+  describe('POST /api/jobs/swipe', () => {
+    it('should return 401 if no token is provided', async () => {
+      const res = await request(app).post('/api/jobs/swipe').send({
+        jobId: new mongoose.Types.ObjectId().toString(),
+        action: 'like',
+      });
 
       expect(res.status).toBe(401);
     });
@@ -240,7 +303,7 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ action: 'like' });
 
@@ -251,7 +314,7 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ jobId: new mongoose.Types.ObjectId().toString() });
 
@@ -262,7 +325,7 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({
           jobId: new mongoose.Types.ObjectId().toString(),
@@ -276,7 +339,7 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ jobId: 'not-an-id', action: 'like' });
 
@@ -287,7 +350,7 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({
           jobId: new mongoose.Types.ObjectId().toString(),
@@ -307,7 +370,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ jobId: job._id.toString(), action: 'like' });
 
@@ -328,7 +391,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ jobId: job._id.toString(), action: 'dislike' });
 
@@ -357,7 +420,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ jobId: job._id.toString(), action: 'like' });
 
@@ -382,7 +445,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .post('/api/job/swipe')
+        .post('/api/jobs/swipe')
         .set('Authorization', `Bearer ${token}`)
         .send({ jobId: job._id.toString(), action: 'like' });
 
@@ -390,7 +453,7 @@ describe('Job routes', () => {
     });
   });
 
-  describe('GET /api/job/recommended', () => {
+  describe('GET /api/jobs/recommended', () => {
     it('should return recommended jobs from latest bilan', async () => {
       const { user, token } = await createUserAndGetToken();
 
@@ -408,7 +471,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get('/api/job/recommended')
+        .get('/api/jobs/recommended')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -421,20 +484,20 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .get('/api/job/recommended')
+        .get('/api/jobs/recommended')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(404);
     });
 
     it('should return 401 if no token is provided', async () => {
-      const res = await request(app).get('/api/job/recommended');
+      const res = await request(app).get('/api/jobs/recommended');
 
       expect(res.status).toBe(401);
     });
   });
 
-  describe('GET /api/job/:id', () => {
+  describe('GET /api/jobs/:id', () => {
     it('should return a job by id', async () => {
       const { token } = await createUserAndGetToken();
 
@@ -451,7 +514,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get(`/api/job/${job._id}`)
+        .get(`/api/jobs/${job._id}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -486,7 +549,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get(`/api/job/${job._id}`)
+        .get(`/api/jobs/${job._id}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -500,7 +563,7 @@ describe('Job routes', () => {
       const fakeId = new mongoose.Types.ObjectId();
 
       const res = await request(app)
-        .get(`/api/job/${fakeId}`)
+        .get(`/api/jobs/${fakeId}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(404);
@@ -510,7 +573,7 @@ describe('Job routes', () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
-        .get('/api/job/invalid-id')
+        .get('/api/jobs/invalid-id')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(400);
@@ -527,7 +590,7 @@ describe('Job routes', () => {
       });
 
       const res = await request(app)
-        .get(`/api/job/${job._id}`)
+        .get(`/api/jobs/${job._id}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(404);

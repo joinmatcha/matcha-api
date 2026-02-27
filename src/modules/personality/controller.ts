@@ -1,64 +1,47 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 
-import PersonalityTemplate from '@/models/PersonalityTemplate';
-import PersonalityTest from '@/models/PersonalityTest';
-import User from '@/models/User';
-import { computePersonality } from '@/services/personality';
+import {
+  getUserPersonalityStatus,
+  resetUserPersonalityTest,
+  submitUserPersonalityTest,
+} from '@/modules/personality/service';
+import { HttpError } from '@/utils/httpError';
 
-export const getActiveTest = async (req: Request, res: Response) => {
+export const getActiveTest = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+  if (!userId) return next(new HttpError(401, 'Unauthorized'));
 
   try {
-    const user = await User.findById(userId);
-
-    if (user?.personalityTestId) {
-      const existingTest = await PersonalityTest.findById(
-        user.personalityTestId,
-      );
-
-      if (existingTest) {
-        return res.json({
-          completed: true,
-          testId: user.personalityTestId,
-          personalityType: existingTest.type,
-          message: 'Test déjà complété',
-        });
-      }
-    }
-
-    const existingTest = await PersonalityTest.findOne({ userId });
-
-    if (existingTest) {
-      await User.findByIdAndUpdate(userId, {
-        personalityTestId: existingTest._id,
-      });
-
+    const status = await getUserPersonalityStatus(userId);
+    if (status.completed) {
       return res.json({
         completed: true,
-        testId: existingTest._id,
-        personalityType: existingTest.type,
+        testId: status.testId,
+        personalityType: status.personalityType,
         message: 'Test déjà complété',
       });
     }
 
-    const test = await PersonalityTemplate.findOne({ isActive: true });
-    if (!test) {
-      return res.status(404).json({ message: 'Aucun test actif trouvé' });
-    }
-
-    res.json({
+    return res.json({
       completed: false,
-      test,
+      test: status.test,
     });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    return next(error);
   }
 };
 
-export const submitTest = async (req: Request, res: Response) => {
+export const submitTest = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+  if (!userId) return next(new HttpError(401, 'Unauthorized'));
 
   const answers = req.body.answers;
   if (!Array.isArray(answers)) {
@@ -66,48 +49,35 @@ export const submitTest = async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await User.findById(userId);
-    if (user?.personalityTestId) {
-      return res.status(409).json({
-        message: 'Vous avez déjà passé ce test',
-        code: 'TEST_ALREADY_COMPLETED',
-      });
-    }
-
-    const existingTest = await PersonalityTest.findOne({ userId });
-    if (existingTest) {
-      await User.findByIdAndUpdate(userId, {
-        personalityTestId: existingTest._id,
-      });
-
-      return res.status(409).json({
-        message: 'Vous avez déjà passé ce test',
-        code: 'TEST_ALREADY_COMPLETED',
-      });
-    }
-
-    const result = await computePersonality(userId, answers);
-    res.status(201).json({
+    const result = await submitUserPersonalityTest(userId, answers);
+    return res.status(201).json({
       success: true,
       message: 'Test completed',
       data: result,
     });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 409) {
+      return res.status(409).json({
+        message: error.message,
+        code: 'TEST_ALREADY_COMPLETED',
+      });
+    }
+    return next(error);
   }
 };
 
-export const resetTest = async (req: Request, res: Response) => {
+export const resetTest = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const userId = req.user?.id;
+  if (!userId) return next(new HttpError(401, 'Unauthorized'));
 
-  const user = await User.findById(userId);
-  if (!user) return res.status(404).json({ message: 'User not found' });
-
-  if (user.personalityTestId) {
-    await PersonalityTest.findByIdAndDelete(user.personalityTestId);
-    user.personalityTestId = undefined;
-    await user.save();
+  try {
+    await resetUserPersonalityTest(userId);
+    return res.json({ message: 'Personality test reset' });
+  } catch (error) {
+    return next(error);
   }
-
-  res.json({ message: 'Personality test reset' });
 };

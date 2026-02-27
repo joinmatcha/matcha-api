@@ -19,7 +19,12 @@ function topEntries(map: Map<string, number>, limit: number) {
 export async function computePreferences(userId: string) {
   const swipes = await Swipe.find({ userId })
     .sort({ swipedAt: -1 })
-    .populate<{ jobId: JobDocument }>('jobId');
+    .populate<{ jobId: JobDocument }>({
+      path: 'jobId',
+      select: '_id title sector competences tags workConditions',
+      options: { lean: true },
+    })
+    .lean();
 
   const sectors = new Map<string, number>();
   const competences = new Map<string, number>();

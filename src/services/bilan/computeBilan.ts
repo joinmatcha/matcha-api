@@ -1,4 +1,6 @@
+import { BilanAnswerSetDocument } from '@/models/BilanAnswerSet';
 import { BilanCompetence } from '@/models/BilanCompetence';
+import { BilanQuestionDocument } from '@/models/BilanQuestion';
 import {
   aggregateScores,
   classifyCompetences,
@@ -8,8 +10,11 @@ import {
 import { generateConclusion } from './generateConclusion';
 
 export const computeAndStoreBilan = async (
-  questions: any[],
-  answerSet: any,
+  questions: Pick<
+    BilanQuestionDocument,
+    'code' | 'domain' | 'subdomain' | 'type'
+  >[],
+  answerSet: BilanAnswerSetDocument,
 ) => {
   const { user, version, answers } = answerSet;
 

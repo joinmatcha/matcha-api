@@ -4,7 +4,7 @@ import { ZodSchema } from 'zod';
 type RequestPart = 'body' | 'query' | 'params';
 
 export const validate =
-  (schema: ZodSchema<any>, part: RequestPart = 'body') =>
+  (schema: ZodSchema<unknown>, part: RequestPart = 'body') =>
   (req: Request, res: Response, next: NextFunction): void => {
     const data = req[part];
     const result = schema.safeParse(data);
@@ -18,6 +18,6 @@ export const validate =
       return;
     }
 
-    (req as any)[part] = result.data;
+    (req as unknown as Record<RequestPart, unknown>)[part] = result.data;
     next();
   };

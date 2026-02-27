@@ -4,6 +4,7 @@ import { createRateLimiter } from '@/middlewares/rateLimit.middleware';
 import { validate } from '@/middlewares/validate.middleware';
 import {
   login,
+  redirectToApp,
   requestPasswordReset,
   resetPassword,
 } from '@/modules/auth/controller';
@@ -37,5 +38,6 @@ router.post(
 );
 
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.get('/password-reset/redirect', redirectToApp);
 
 export default router;

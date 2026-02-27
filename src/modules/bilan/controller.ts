@@ -100,7 +100,9 @@ export const getMyBilan = async (
 
     const bilan = await BilanCompetence.findOne({
       user: req.user.id,
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (!bilan) {
       return res.status(404).json({ message: 'No bilan found' });

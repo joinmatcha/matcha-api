@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { passwordSchema } from '@/modules/shared/password.schema';
+import { passwordSchema } from '@/utils/validation/password';
 
 export const createUserSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required' }),

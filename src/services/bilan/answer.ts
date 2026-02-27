@@ -1,4 +1,8 @@
-import { BilanAnswerSet } from '@/models/BilanAnswerSet';
+import {
+  BilanAnswer,
+  BilanAnswerSet,
+  BilanAnswerSetDocument,
+} from '@/models/BilanAnswerSet';
 
 export const createAnswerSet = async ({
   userId,
@@ -7,8 +11,8 @@ export const createAnswerSet = async ({
 }: {
   userId: string;
   version: number;
-  answers: any[];
-}) => {
+  answers: BilanAnswer[];
+}): Promise<BilanAnswerSetDocument | null> => {
   return BilanAnswerSet.findOneAndUpdate(
     { user: userId, version },
     { answers },
@@ -16,6 +20,9 @@ export const createAnswerSet = async ({
   );
 };
 
-export const getAnswerSet = async (userId: string, version: number) => {
+export const getAnswerSet = async (
+  userId: string,
+  version: number,
+): Promise<BilanAnswerSetDocument | null> => {
   return BilanAnswerSet.findOne({ user: userId, version });
 };

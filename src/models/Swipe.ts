@@ -7,8 +7,11 @@ export interface SwipeDocument {
   userId: Types.ObjectId;
   jobId: Types.ObjectId;
   action: SwipeAction;
+  dayKey: string;
   swipedAt: Date;
 }
+
+const computeDayKeyUTC = (date: Date) => date.toISOString().slice(0, 10);
 
 const SwipeSchema = new Schema<SwipeDocument>(
   {
@@ -28,6 +31,14 @@ const SwipeSchema = new Schema<SwipeDocument>(
       enum: ['like', 'dislike'],
       required: true,
     },
+    dayKey: {
+      type: String,
+      required: true,
+      default: function () {
+        return computeDayKeyUTC(this.swipedAt ?? new Date());
+      },
+      index: true,
+    },
     swipedAt: {
       type: Date,
       default: Date.now,
@@ -40,5 +51,7 @@ const SwipeSchema = new Schema<SwipeDocument>(
 );
 
 SwipeSchema.index({ userId: 1, jobId: 1, swipedAt: 1 });
+SwipeSchema.index({ userId: 1, dayKey: 1 });
+SwipeSchema.index({ userId: 1, jobId: 1, dayKey: 1 }, { unique: true });
 
 export const Swipe = model<SwipeDocument>('Swipe', SwipeSchema);

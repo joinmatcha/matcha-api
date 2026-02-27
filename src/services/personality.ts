@@ -7,22 +7,44 @@ interface Answer {
   value: number; // -2 à +2
 }
 
+type PersonalityDimension = 'EI' | 'SN' | 'TF' | 'JP';
+
+interface TemplateQuestion {
+  id: string;
+  dimension: PersonalityDimension;
+}
+
+interface TemplateProfile {
+  key: string;
+  label?: string;
+  description?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  recommendedJobs?: string[];
+}
+
 export async function computePersonality(userId: string, answers: Answer[]) {
   const template = await PersonalityTemplate.findOne({ isActive: true });
   if (!template) throw new Error('Aucun test actif trouvé.');
 
   // Initialisation des dimensions principales
-  const scores: Record<'EI' | 'SN' | 'TF' | 'JP', number> = {
+  const scores: Record<PersonalityDimension, number> = {
     EI: 0,
     SN: 0,
     TF: 0,
     JP: 0,
   };
 
+  const questionsById = new Map<string, TemplateQuestion>(
+    (template.questions as unknown as TemplateQuestion[]).map((q) => [q.id, q]),
+  );
+
   // Calcul du score pour chaque dimension
   for (const ans of answers) {
-    const q = template.questions.find((q: any) => q.id === ans.questionId);
-    if (q && q.dimension) scores[q.dimension] += ans.value;
+    const question = questionsById.get(ans.questionId);
+    if (question) {
+      scores[question.dimension] += ans.value;
+    }
   }
 
   // Détermination du type MBTI à partir du signe de chaque score
@@ -33,7 +55,9 @@ export async function computePersonality(userId: string, answers: Answer[]) {
     (scores.JP >= 0 ? 'J' : 'P');
 
   // Recherche du profil associé
-  const profile = template.profiles.find((p: any) => p.key === type);
+  const profile = (template.profiles as unknown as TemplateProfile[]).find(
+    (p) => p.key === type,
+  );
 
   // Sauvegarde du test complet
   const test = await PersonalityTest.create({
