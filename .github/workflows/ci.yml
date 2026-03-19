@@ -1,0 +1,133 @@
+name: CI
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - main
+      - develop1
+  pull_request:
+    branches:
+      - main
+      - develop1
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint API
+        run: yarn lint
+
+      - name: Cleanup MongoDB binaries cache
+        run: rm -rf ~/.cache/mongodb-binaries
+
+      - name: Test API with coverage
+        run: yarn test:coverage
+
+      - name: Upload API coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: coverage
+          if-no-files-found: warn
+
+      - name: Build API
+        run: yarn build
+
+  coverage-summary:
+    runs-on: ubuntu-latest
+    needs: api
+    if: always()
+    steps:
+      - name: Download API coverage artifact
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: api-coverage
+          path: coverage/api
+
+      - name: Build coverage markdown summary
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const summaryPath = path.join('coverage', 'api', 'coverage-summary.json');
+          const summary = fs.existsSync(summaryPath)
+            ? JSON.parse(fs.readFileSync(summaryPath, 'utf8'))
+            : null;
+
+          const row = (name, report) => {
+            if (!report || !report.total) {
+              return `| ${name} | n/a | n/a | n/a | n/a |`;
+            }
+            const t = report.total;
+            return `| ${name} | ${t.lines.pct}% | ${t.statements.pct}% | ${t.functions.pct}% | ${t.branches.pct}% |`;
+          };
+
+          const md = [
+            '## Test Coverage',
+            '',
+            '| Workspace | Lines | Statements | Functions | Branches |',
+            '|---|---:|---:|---:|---:|',
+            row('matcha-api', summary),
+            '',
+            '_Coverage artifact is available in workflow artifacts (`api-coverage`)._',
+            '',
+          ].join('\n');
+
+          fs.writeFileSync('coverage-summary.md', md);
+          NODE
+
+      - name: Publish coverage in job summary
+        run: cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('coverage-summary.md', 'utf8');
+            const marker = '<!-- coverage-summary-comment -->';
+            const commentBody = `${marker}\n${body}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: commentBody,
+              });
+            }

@@ -8,7 +8,7 @@ export const errorHandler = (
   err: AppError,
   _req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): void => {
   void next;
   const statusCode = err.status || 500;

@@ -47,7 +47,7 @@ const BilanQuestionSchema = new Schema<BilanQuestionDocument>(
     version: { type: Number, required: true, default: 1 },
     isActive: { type: Boolean, required: true, default: true },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // index pratique pour récupérer toutes les questions d’une version

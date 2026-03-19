@@ -27,14 +27,14 @@ router.post(
   '/change-password',
   requireAuth,
   validate(changePasswordSchema),
-  changePassword,
+  changePassword
 );
 
 router.post(
   '/request-email-change',
   requireAuth,
   validate(requestEmailChangeSchema),
-  requestEmailChange,
+  requestEmailChange
 );
 
 export default router;

@@ -19,7 +19,7 @@ const BilanAnswerSchema = new Schema<BilanAnswer>(
     valueNumber: { type: Number, required: false },
     valueText: { type: String, required: false },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const BilanAnswerSetSchema = new Schema<BilanAnswerSetDocument>(
@@ -28,7 +28,7 @@ const BilanAnswerSetSchema = new Schema<BilanAnswerSetDocument>(
     version: { type: Number, required: true, default: 1 },
     answers: { type: [BilanAnswerSchema], required: true },
   },
-  { timestamps: { createdAt: true, updatedAt: false } },
+  { timestamps: { createdAt: true, updatedAt: false } }
 );
 
 // 1 seul set de réponses par user + version

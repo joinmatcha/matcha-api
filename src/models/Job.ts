@@ -153,7 +153,7 @@ const JobSchema = new Schema<JobDocument>(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 export const Job = model<JobDocument>('Job', JobSchema);

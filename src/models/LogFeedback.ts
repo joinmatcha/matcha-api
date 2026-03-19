@@ -22,7 +22,7 @@ const LogFeedbackSchema = new Schema(
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
-  },
+  }
 );
 
 export default model('LogFeedback', LogFeedbackSchema);

@@ -48,7 +48,7 @@ const CvParsingSchema = new Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 export default model('CvParsing', CvParsingSchema);

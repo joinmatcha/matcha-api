@@ -36,7 +36,7 @@ export async function computePersonality(userId: string, answers: Answer[]) {
   };
 
   const questionsById = new Map<string, TemplateQuestion>(
-    (template.questions as unknown as TemplateQuestion[]).map((q) => [q.id, q]),
+    (template.questions as unknown as TemplateQuestion[]).map((q) => [q.id, q])
   );
 
   // Calcul du score pour chaque dimension
@@ -56,7 +56,7 @@ export async function computePersonality(userId: string, answers: Answer[]) {
 
   // Recherche du profil associé
   const profile = (template.profiles as unknown as TemplateProfile[]).find(
-    (p) => p.key === type,
+    (p) => p.key === type
   );
 
   // Sauvegarde du test complet

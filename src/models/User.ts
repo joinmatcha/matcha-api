@@ -79,7 +79,7 @@ const UserSchema = new Schema(
   },
   {
     timestamps: true, // Ajoute createdAt / updatedAt
-  },
+  }
 );
 
 // Index géospatial

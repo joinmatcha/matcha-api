@@ -25,7 +25,7 @@ router.get(
   '/:id',
   requireAuth,
   validate(jobIdParamsSchema, 'params'),
-  getJobById,
+  getJobById
 );
 
 export default router;

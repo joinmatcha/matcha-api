@@ -49,7 +49,7 @@ export const updateProfileSchema = z
           .tuple([z.number(), z.number()])
           .refine(
             ([lng, lat]) => Math.abs(lng) <= 180 && Math.abs(lat) <= 90,
-            'Coordinates must be valid longitude/latitude',
+            'Coordinates must be valid longitude/latitude'
           )
           .optional(),
       })

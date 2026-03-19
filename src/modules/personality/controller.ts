@@ -10,7 +10,7 @@ import { HttpError } from '@/utils/httpError';
 export const getActiveTest = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   const userId = req.user?.id;
   if (!userId) return next(new HttpError(401, 'Unauthorized'));
@@ -38,7 +38,7 @@ export const getActiveTest = async (
 export const submitTest = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   const userId = req.user?.id;
   if (!userId) return next(new HttpError(401, 'Unauthorized'));
@@ -69,7 +69,7 @@ export const submitTest = async (
 export const resetTest = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   const userId = req.user?.id;
   if (!userId) return next(new HttpError(401, 'Unauthorized'));

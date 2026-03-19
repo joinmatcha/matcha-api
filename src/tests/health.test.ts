@@ -11,7 +11,7 @@ describe('GET /health', () => {
       expect.objectContaining({
         status: 'ok',
         uptime: expect.any(Number),
-      }),
+      })
     );
   });
 });

@@ -1290,6 +1290,6 @@ export async function seedJobsV1() {
   await Job.insertMany(filled.slice(0, 100));
 
   console.log(
-    `✅ Jobs seeded successfully: ${Math.min(filled.length, 100)} métiers`,
+    `✅ Jobs seeded successfully: ${Math.min(filled.length, 100)} métiers`
   );
 }

@@ -37,7 +37,7 @@ const RecommendationSchema = new Schema(
   },
   {
     timestamps: true, // createdAt / updatedAt auto
-  },
+  }
 );
 
 export default model('Recommendation', RecommendationSchema);

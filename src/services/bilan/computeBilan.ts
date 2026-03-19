@@ -14,7 +14,7 @@ export const computeAndStoreBilan = async (
     BilanQuestionDocument,
     'code' | 'domain' | 'subdomain' | 'type'
   >[],
-  answerSet: BilanAnswerSetDocument,
+  answerSet: BilanAnswerSetDocument
 ) => {
   const { user, version, answers } = answerSet;
 

@@ -9,7 +9,7 @@ import { BilanResultDTO } from '@/types/bilan';
 export const getQuestions = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const version = await QuestionService.getLatestVersion();
@@ -24,7 +24,7 @@ export const getQuestions = async (
 export const submitAnswers = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
@@ -52,7 +52,7 @@ export const submitAnswers = async (
 export const generateBilan = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
@@ -76,7 +76,7 @@ export const generateBilan = async (
 
     const bilan = await ComputeBilanService.computeAndStoreBilan(
       questions,
-      answers,
+      answers
     );
 
     return res.status(200).json({
@@ -91,7 +91,7 @@ export const generateBilan = async (
 export const getMyBilan = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     if (!req.user) {

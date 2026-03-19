@@ -16,7 +16,7 @@ interface LoginRequest {
 export const login = async (
   req: Request<object, object, LoginRequest>,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<Response | void> => {
   try {
     const { email, password } = req.body;
@@ -41,7 +41,7 @@ export const login = async (
     const token = jwt.sign(
       { id: user._id, email: user.email },
       env.JWT_SECRET,
-      { expiresIn: '24h' },
+      { expiresIn: '24h' }
     );
 
     res.status(200).json({
@@ -61,7 +61,7 @@ export const login = async (
 
 export const requestPasswordReset = async (
   req: Request<object, object, RequestPasswordResetInput>,
-  res: Response,
+  res: Response
 ): Promise<Response | void> => {
   const { email } = req.body;
 
@@ -100,7 +100,7 @@ export const requestPasswordReset = async (
 
 export const resetPassword = async (
   req: Request<object, object, ResetPasswordInput>,
-  res: Response,
+  res: Response
 ): Promise<Response | void> => {
   const { token, newPassword } = req.body;
 
@@ -211,7 +211,7 @@ const renderErrorPage = (): string => `
 const renderRedirectPage = (
   token: string,
   deepLink: string,
-  expLink: string,
+  expLink: string
 ): string => `
   <!DOCTYPE html>
   <html lang="fr">

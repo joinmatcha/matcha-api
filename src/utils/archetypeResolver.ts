@@ -74,7 +74,7 @@ const ARCHETYPES: ArchetypeRule[] = [
 ];
 
 export function resolveArchetype(
-  input: ResolveArchetypeInput,
+  input: ResolveArchetypeInput
 ): BilanArchetypeDTO {
   const ranked = ARCHETYPES.map((rule) => ({
     rule,

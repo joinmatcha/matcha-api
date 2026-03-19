@@ -44,7 +44,7 @@ const SkillsAssessmentSchema = new Schema(
   },
   {
     timestamps: true, // auto-add createdAt and updatedAt
-  },
+  }
 );
 
 export default model('SkillsAssessment', SkillsAssessmentSchema);

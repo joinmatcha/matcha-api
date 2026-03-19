@@ -26,7 +26,7 @@ export function aggregateScores(
     BilanQuestionDocument,
     'code' | 'domain' | 'subdomain' | 'type'
   >[],
-  answers: BilanAnswer[],
+  answers: BilanAnswer[]
 ): AggregatedScores {
   const result: AggregatedScores = {
     competence: {},

@@ -37,7 +37,7 @@ const ChatSessionSchema = new Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 export default model('ChatSession', ChatSessionSchema);

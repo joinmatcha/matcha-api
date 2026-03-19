@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'testsecret';
 const authHeader = (id?: string) => {
   const token = jwt.sign(
     { id: id || new mongoose.Types.ObjectId().toString() },
-    JWT_SECRET,
+    JWT_SECRET
   );
   return { Authorization: `Bearer ${token}` };
 };
@@ -147,7 +147,7 @@ describe('Bilan API', () => {
       expect(res.body.bilan.conclusion.archetype.title).toBeDefined();
 
       expect(Array.isArray(res.body.bilan.conclusion.recommendedJobs)).toBe(
-        true,
+        true
       );
 
       const stored = await BilanCompetence.findOne({ user: userId });

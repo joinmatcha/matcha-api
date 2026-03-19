@@ -16,13 +16,13 @@ export const createAnswerSet = async ({
   return BilanAnswerSet.findOneAndUpdate(
     { user: userId, version },
     { answers },
-    { upsert: true, new: true },
+    { upsert: true, new: true }
   );
 };
 
 export const getAnswerSet = async (
   userId: string,
-  version: number,
+  version: number
 ): Promise<BilanAnswerSetDocument | null> => {
   return BilanAnswerSet.findOne({ user: userId, version });
 };

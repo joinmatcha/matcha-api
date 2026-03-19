@@ -28,12 +28,12 @@ const SwipeQuotaSchema = new Schema<SwipeQuotaDocument>(
   },
   {
     timestamps: false,
-  },
+  }
 );
 
 SwipeQuotaSchema.index({ userId: 1, dayKey: 1 }, { unique: true });
 
 export const SwipeQuota = model<SwipeQuotaDocument>(
   'SwipeQuota',
-  SwipeQuotaSchema,
+  SwipeQuotaSchema
 );

@@ -15,7 +15,7 @@ describe('GET /api/auth/password-reset/redirect', () => {
     const token = 'abc123testtoken';
 
     const res = await request(app).get(
-      `/api/auth/password-reset/redirect?token=${token}`,
+      `/api/auth/password-reset/redirect?token=${token}`
     );
 
     expect(res.status).toBe(200);
@@ -27,7 +27,7 @@ describe('GET /api/auth/password-reset/redirect', () => {
     const token = 'myresettoken42';
 
     const res = await request(app).get(
-      `/api/auth/password-reset/redirect?token=${token}`,
+      `/api/auth/password-reset/redirect?token=${token}`
     );
 
     expect(res.status).toBe(200);

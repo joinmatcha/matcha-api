@@ -11,11 +11,7 @@ module.exports = {
   clearMocks: true,
   testTimeout: 20000,
   verbose: true,
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/tests/**',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/tests/**'],
   coverageDirectory: '<rootDir>/coverage',
   coverageReporters: ['text', 'lcov', 'json-summary', 'html'],
 };

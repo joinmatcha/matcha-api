@@ -17,7 +17,7 @@ router.post(
   '/submit',
   requireAuth,
   validate(submitPersonalitySchema),
-  submitTest,
+  submitTest
 );
 
 router.post('/reset', requireAuth, resetTest);

@@ -36,6 +36,6 @@ export async function seedRome(): Promise<void> {
   const result = await Job.bulkWrite(operations);
 
   console.log(
-    `✅ ROME seed terminé : ${result.upsertedCount} créés, ${result.modifiedCount} mis à jour`,
+    `✅ ROME seed terminé : ${result.upsertedCount} créés, ${result.modifiedCount} mis à jour`
   );
 }

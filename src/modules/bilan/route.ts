@@ -21,14 +21,14 @@ router.post(
   '/answers',
   requireAuth,
   validate(submitAnswersSchema),
-  submitAnswers,
+  submitAnswers
 );
 
 router.post(
   '/generate',
   requireAuth,
   validate(generateBilanSchema),
-  generateBilan,
+  generateBilan
 );
 
 router.get('/me', requireAuth, getMyBilan);

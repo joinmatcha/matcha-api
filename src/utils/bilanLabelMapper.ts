@@ -6,8 +6,8 @@ import { BILAN_SUBDOMAIN_LABELS } from '@/constants/bilanLabels';
  */
 export const mapSubdomainsToLabels = (
   domain: string,
-  values: string[],
+  values: string[]
 ): string[] =>
   values.map(
-    (v) => BILAN_SUBDOMAIN_LABELS[domain]?.[v] ?? v.replace(/_/g, ' '),
+    (v) => BILAN_SUBDOMAIN_LABELS[domain]?.[v] ?? v.replace(/_/g, ' ')
   );

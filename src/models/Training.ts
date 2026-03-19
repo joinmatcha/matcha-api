@@ -45,7 +45,7 @@ const TrainingSchema = new Schema(
   },
   {
     timestamps: true, // auto add createdAt / updatedAt
-  },
+  }
 );
 
 TrainingSchema.index({ location: '2dsphere' });

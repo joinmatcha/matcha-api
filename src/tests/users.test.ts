@@ -30,7 +30,7 @@ const createUserAndGetToken = async () => {
 
   const token = jwt.sign(
     { id: user._id },
-    process.env.JWT_SECRET || 'test-secret',
+    process.env.JWT_SECRET || 'test-secret'
   );
 
   return { user, token };
@@ -51,7 +51,7 @@ describe('POST /api/users', () => {
     expect(res.statusCode).toBe(201);
     expect(res.body).toHaveProperty(
       'message',
-      'User created successfully. Please check your email to verify your account.',
+      'User created successfully. Please check your email to verify your account.'
     );
     expect(res.body).toHaveProperty('userId');
 
@@ -160,7 +160,7 @@ describe('GET /api/users/:id', () => {
     const nonExistentId = new mongoose.Types.ObjectId();
     const tokenForMissingUser = jwt.sign(
       { id: nonExistentId.toString() },
-      process.env.JWT_SECRET || 'test-secret',
+      process.env.JWT_SECRET || 'test-secret'
     );
 
     const res = await request(app)
@@ -252,7 +252,7 @@ describe('GET /api/users/me/preferences', () => {
     expect(res.body.preferences.totalDislikes).toBe(0);
     expect(res.body.preferences.topSectors[0].key).toBe('Tech');
     expect(res.body.preferences.recentLikes[0].title).toBe(
-      'Développeur·se web',
+      'Développeur·se web'
     );
   });
 
@@ -327,7 +327,7 @@ describe('GET /api/users/verify-email', () => {
     });
 
     const res = await request(app).get(
-      `/api/users/verify-email?token=${token}`,
+      `/api/users/verify-email?token=${token}`
     );
 
     expect(res.status).toBe(200);
@@ -348,7 +348,7 @@ describe('GET /api/users/verify-email', () => {
     });
 
     const res = await request(app).get(
-      `/api/users/verify-email?token=${token}`,
+      `/api/users/verify-email?token=${token}`
     );
 
     expect(res.status).toBe(404);

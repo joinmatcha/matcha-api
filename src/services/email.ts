@@ -37,7 +37,7 @@ const logPreviewUrl = (info: any): void => {
 
 export const sendValidationEmail = async (
   to: string,
-  token: string,
+  token: string
 ): Promise<void> => {
   const transporter = await getTransporter();
   const link = `${API_URL}/api/users/verify-email?token=${token}`;
@@ -53,7 +53,7 @@ export const sendValidationEmail = async (
 
 export const sendResetPasswordEmail = async (
   to: string,
-  token: string,
+  token: string
 ): Promise<void> => {
   const transporter = await getTransporter();
   const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
@@ -121,7 +121,7 @@ Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet ema
 
 export const sendEmailChangeVerification = async (
   to: string,
-  token: string,
+  token: string
 ): Promise<void> => {
   const transporter = await getTransporter();
 

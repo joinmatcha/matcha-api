@@ -5,7 +5,7 @@ const AnswerSchema = new Schema(
     questionId: { type: String, required: true },
     value: { type: Number, required: true }, // -2 .. +2 (Likert)
   },
-  { _id: false },
+  { _id: false }
 );
 
 const PersonalityTestSchema = new Schema(
@@ -53,7 +53,7 @@ const PersonalityTestSchema = new Schema(
       default: {},
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // éviter les doublons (un résultat par user et template actif, optionnel)

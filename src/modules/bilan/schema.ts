@@ -7,7 +7,7 @@ export const submitAnswersSchema = z.object({
       questionCode: z.string(),
       valueNumber: z.number().optional(),
       valueText: z.string().optional(),
-    }),
+    })
   ),
 });
 

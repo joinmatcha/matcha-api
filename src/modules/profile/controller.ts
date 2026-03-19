@@ -17,7 +17,7 @@ import { hashToken } from '@/utils/token';
 export const updateProfile = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
@@ -83,7 +83,7 @@ export const updateProfile = async (
 export const getProfile = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
@@ -119,7 +119,7 @@ export const getProfile = async (
 
     if (user.personalityTestId) {
       const test = await PersonalityTest.findById(
-        user.personalityTestId,
+        user.personalityTestId
       ).lean();
 
       if (test) {
@@ -155,7 +155,7 @@ export const getProfile = async (
 export const deleteAccount = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
@@ -184,7 +184,7 @@ export const deleteAccount = async (
 export const changePassword = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
@@ -224,7 +224,7 @@ export const changePassword = async (
 export const requestEmailChange = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;

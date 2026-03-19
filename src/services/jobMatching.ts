@@ -20,7 +20,7 @@ export interface RecommendedJob {
 export async function findRecommendedJobs(
   input: JobMatchInput,
   limit = 4,
-  minScore = 60,
+  minScore = 60
 ): Promise<RecommendedJob[]> {
   const jobs = await Job.find({
     isActive: true,
@@ -28,7 +28,7 @@ export async function findRecommendedJobs(
     competences: { $in: input.competenceStrengths },
   })
     .select(
-      '_id title description sector riasec competences softSkills values workConditions',
+      '_id title description sector riasec competences softSkills values workConditions'
     )
     .lean();
 
@@ -36,10 +36,10 @@ export async function findRecommendedJobs(
 
   for (const job of jobs) {
     const riasecMatches = job.riasec.filter((r) =>
-      input.interestsProfile.includes(r),
+      input.interestsProfile.includes(r)
     );
     const competenceMatches = job.competences.filter((c) =>
-      input.competenceStrengths.includes(c),
+      input.competenceStrengths.includes(c)
     );
 
     if (riasecMatches.length === 0 || competenceMatches.length === 0) {
@@ -47,11 +47,11 @@ export async function findRecommendedJobs(
     }
 
     const softSkillMatches = job.softSkills.filter((s) =>
-      input.softSkillStrengths.includes(s),
+      input.softSkillStrengths.includes(s)
     );
     const valueMatches = job.values.filter((v) => input.topValues.includes(v));
     const workConditionMatches = job.workConditions.filter((w) =>
-      input.topWorkConditions.includes(w),
+      input.topWorkConditions.includes(w)
     );
 
     const rawScore =

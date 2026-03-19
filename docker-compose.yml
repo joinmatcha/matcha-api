@@ -1,0 +1,55 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: matcha_api_mongo
+    profiles: ['api', 'cleanup', 'all']
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: matcha_dev
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: matcha_api
+    profiles: ['api', 'all']
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - api_node_modules:/app/node_modules
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DB: matcha_dev
+      JWT_SECRET: etna
+
+  cleanup:
+    build:
+      context: .
+      dockerfile: cron.Dockerfile
+    container_name: matcha_api_cleanup
+    profiles: ['cleanup', 'all']
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DB: matcha_dev
+      JWT_SECRET: etna
+    command: node dist/scripts/cleanup-unverified-users.js
+
+volumes:
+  mongo_data:
+  api_node_modules:

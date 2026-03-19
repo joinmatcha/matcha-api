@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'testsecret';
 const authHeader = () => {
   const token = jwt.sign(
     { id: new mongoose.Types.ObjectId().toString() },
-    JWT_SECRET,
+    JWT_SECRET
   );
   return { Authorization: `Bearer ${token}` };
 };

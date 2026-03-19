@@ -100,7 +100,7 @@ describe('findRecommendedJobs', () => {
         riasec: ['RIASEC_I'],
         competences: ['analysis'],
         growthOutlook: 'unknown',
-      })),
+      }))
     );
 
     const input = {

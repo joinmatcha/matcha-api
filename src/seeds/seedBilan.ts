@@ -16,6 +16,6 @@ export const seedBilan = async () => {
   await BilanQuestion.insertMany(bilanQuestions);
 
   console.log(
-    `✅ Bilan de compétences v${version} seedé avec succès (${bilanQuestions.length} questions)`,
+    `✅ Bilan de compétences v${version} seedé avec succès (${bilanQuestions.length} questions)`
   );
 };

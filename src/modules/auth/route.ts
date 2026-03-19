@@ -34,7 +34,7 @@ router.post(
   '/request-reset',
   requestResetLimiter,
   validate(requestPasswordResetSchema),
-  requestPasswordReset,
+  requestPasswordReset
 );
 
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);

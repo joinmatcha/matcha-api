@@ -78,7 +78,7 @@ const SkillClassificationSchema = new Schema(
     acquired: { type: [String], default: [] },
     toImprove: { type: [String], default: [] },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const InvestigationSchema = new Schema(
@@ -99,7 +99,7 @@ const InvestigationSchema = new Schema(
     topWorkConditions: { type: [String], default: [] },
     interestsProfile: { type: [String], default: [] },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const ArchetypeSchema = new Schema(
@@ -109,7 +109,7 @@ const ArchetypeSchema = new Schema(
     subtitle: { type: String, required: true },
     description: { type: String, required: true },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const RecommendedJobSchema = new Schema(
@@ -120,7 +120,7 @@ const RecommendedJobSchema = new Schema(
     sector: { type: String },
     score: { type: Number, required: true },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const ConclusionSchema = new Schema(
@@ -136,7 +136,7 @@ const ConclusionSchema = new Schema(
 
     actionPlan: { type: [String], default: [] },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const BilanCompetenceSchema = new Schema(
@@ -170,7 +170,7 @@ const BilanCompetenceSchema = new Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } },
+  { timestamps: { createdAt: true, updatedAt: false } }
 );
 
 // historique des bilans

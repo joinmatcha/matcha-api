@@ -40,7 +40,7 @@ export const generateConclusion = async ({
   const mappedTopValues = mapSubdomainsToLabels('value', topValues);
   const mappedTopWorkConditions = mapSubdomainsToLabels(
     'work_condition',
-    topWorkConditions,
+    topWorkConditions
   );
 
   const archetype = resolveArchetype({
@@ -80,7 +80,7 @@ export const generateConclusion = async ({
     ...new Set(
       recommendedJobs
         .map((j) => j.sector)
-        .filter((s): s is string => Boolean(s)),
+        .filter((s): s is string => Boolean(s))
     ),
   ];
 

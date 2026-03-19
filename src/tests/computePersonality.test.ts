@@ -43,7 +43,7 @@ describe('computePersonality', () => {
 
     const result = await computePersonality(
       new mongoose.Types.ObjectId().toString(),
-      answers,
+      answers
     );
 
     expect(result.type).toBe('ESTJ');
@@ -58,7 +58,7 @@ describe('computePersonality', () => {
   it('should throw if no active test exists', async () => {
     await PersonalityTemplate.deleteMany({});
     await expect(
-      computePersonality(new mongoose.Types.ObjectId().toString(), []),
+      computePersonality(new mongoose.Types.ObjectId().toString(), [])
     ).rejects.toThrow('Aucun test actif trouvé.');
   });
 });

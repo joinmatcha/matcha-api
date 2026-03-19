@@ -11,6 +11,7 @@ import { hashToken } from '@/utils/token';
 
 const USER_SAFE_FIELDS =
   '_id email firstName lastName birthYear gender subscription jobTypes locationPref remote avatarUrl addressStreet addressCity addressPostalCode addressCountry location isEmailVerified consentAccepted consentTimestamp createdAt updatedAt';
+type IdParams = { id: string };
 
 /**
  * Get user preferences computed from swipe history
@@ -18,7 +19,7 @@ const USER_SAFE_FIELDS =
 export const getPreferences = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -39,7 +40,7 @@ export const getPreferences = async (
 export const createUser = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { email, password, firstName, lastName, consentAccepted } =
@@ -84,9 +85,9 @@ export const createUser = async (
  * Get user by ID
  */
 export const getUserById = async (
-  req: Request,
+  req: Request<IdParams>,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -121,7 +122,7 @@ export const getUserById = async (
 export const getMe = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -148,7 +149,7 @@ export const getMe = async (
 export const verifyEmail = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   const { token } = req.query;
 

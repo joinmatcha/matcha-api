@@ -47,7 +47,7 @@ const SwipeSchema = new Schema<SwipeDocument>(
   },
   {
     timestamps: false,
-  },
+  }
 );
 
 SwipeSchema.index({ userId: 1, jobId: 1, swipedAt: 1 });

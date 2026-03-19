@@ -27,7 +27,7 @@ const createUserAndGetToken = async () => {
 
   const token = jwt.sign(
     { id: user._id },
-    process.env.JWT_SECRET || 'test-secret',
+    process.env.JWT_SECRET || 'test-secret'
   );
 
   return { user, token };
@@ -127,8 +127,8 @@ describe('Jobs routes', () => {
             jobId: new mongoose.Types.ObjectId(),
             action: 'like',
             swipedAt: new Date(),
-          }),
-        ),
+          })
+        )
       );
 
       const res = await request(app)
@@ -163,7 +163,7 @@ describe('Jobs routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.jobs.map((j: any) => j.id)).not.toContain(
-        job._id.toString(),
+        job._id.toString()
       );
     });
 
@@ -192,7 +192,7 @@ describe('Jobs routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.jobs.map((j: any) => j.id)).not.toContain(
-        job._id.toString(),
+        job._id.toString()
       );
     });
 
@@ -409,8 +409,8 @@ describe('Jobs routes', () => {
             jobId: new mongoose.Types.ObjectId(),
             action: 'like',
             swipedAt: new Date(),
-          }),
-        ),
+          })
+        )
       );
 
       const job = await Job.create({

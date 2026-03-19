@@ -31,7 +31,7 @@ const createUserAndGetToken = async () => {
 
   const token = jwt.sign(
     { id: user._id },
-    process.env.JWT_SECRET || 'test-secret',
+    process.env.JWT_SECRET || 'test-secret'
   );
 
   return { token, password };
@@ -139,7 +139,7 @@ describe('PATCH /api/profile', () => {
     expect(res.body.success).toBe(false);
 
     expect(res.body.errors.some((e: any) => e.path?.includes('gender'))).toBe(
-      true,
+      true
     );
   });
 
@@ -162,8 +162,8 @@ describe('PATCH /api/profile', () => {
     expect(
       res.body.errors.some(
         (e: any) =>
-          e.path?.includes('location') || e.path?.includes('coordinates'),
-      ),
+          e.path?.includes('location') || e.path?.includes('coordinates')
+      )
     ).toBe(true);
   });
 
@@ -180,8 +180,8 @@ describe('PATCH /api/profile', () => {
 
     expect(
       res.body.errors.some((e: any) =>
-        e.message?.includes('At least one field must be provided'),
-      ),
+        e.message?.includes('At least one field must be provided')
+      )
     ).toBe(true);
   });
 
@@ -198,8 +198,8 @@ describe('PATCH /api/profile', () => {
 
     expect(
       res.body.errors.some((e: any) =>
-        e.message?.toLowerCase().includes('unrecognized'),
-      ),
+        e.message?.toLowerCase().includes('unrecognized')
+      )
     ).toBe(true);
   });
 });
@@ -340,7 +340,7 @@ describe('POST /api/profile/request-email-change', () => {
     expect(res.body.success).toBe(false);
 
     expect(res.body.errors.some((e: any) => e.path?.includes('newEmail'))).toBe(
-      true,
+      true
     );
   });
 

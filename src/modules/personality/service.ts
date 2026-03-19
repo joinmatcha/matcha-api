@@ -36,7 +36,7 @@ export const getUserPersonalityStatus = async (userId: string) => {
   if (existingTest) {
     await User.updateOne(
       { _id: userId, personalityTestId: { $exists: false } },
-      { $set: { personalityTestId: existingTest._id } },
+      { $set: { personalityTestId: existingTest._id } }
     );
 
     return {
@@ -59,7 +59,7 @@ export const getUserPersonalityStatus = async (userId: string) => {
 
 export const submitUserPersonalityTest = async (
   userId: string,
-  answers: PersonalityAnswerInput[],
+  answers: PersonalityAnswerInput[]
 ) => {
   const user = await User.findById(userId)
     .select('_id personalityTestId')
@@ -83,7 +83,7 @@ export const submitUserPersonalityTest = async (
       if (existingTest) {
         await User.updateOne(
           { _id: userId },
-          { $set: { personalityTestId: existingTest._id } },
+          { $set: { personalityTestId: existingTest._id } }
         );
       }
 

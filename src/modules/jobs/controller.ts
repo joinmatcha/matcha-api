@@ -18,7 +18,7 @@ function getDayKeyUTC(date = new Date()): string {
 
 function getUtcDayRange(date = new Date()) {
   const start = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
   );
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 1);
@@ -38,6 +38,7 @@ function getTodaySwipeFilter(userId: string, dayKey: string) {
 }
 
 type MongoDuplicateKeyError = Error & { code?: number };
+type IdParams = { id: string };
 
 const isDuplicateKeyError = (error: unknown): error is MongoDuplicateKeyError =>
   error instanceof Error &&
@@ -49,7 +50,7 @@ async function reserveDailySwipeSlot(userId: string, dayKey: string) {
     const quota = await SwipeQuota.findOneAndUpdate(
       { userId, dayKey, count: { $lt: DAILY_SWIPE_LIMIT } },
       { $inc: { count: 1 }, $setOnInsert: { userId, dayKey } },
-      { new: true, upsert: true },
+      { new: true, upsert: true }
     );
 
     return quota;
@@ -59,7 +60,7 @@ async function reserveDailySwipeSlot(userId: string, dayKey: string) {
       return SwipeQuota.findOneAndUpdate(
         { userId, dayKey, count: { $lt: DAILY_SWIPE_LIMIT } },
         { $inc: { count: 1 } },
-        { new: true },
+        { new: true }
       );
     }
     throw error;
@@ -69,14 +70,14 @@ async function reserveDailySwipeSlot(userId: string, dayKey: string) {
 async function releaseDailySwipeSlot(userId: string, dayKey: string) {
   await SwipeQuota.updateOne(
     { userId, dayKey, count: { $gt: 0 } },
-    { $inc: { count: -1 } },
+    { $inc: { count: -1 } }
   );
 }
 
 export const listJobs = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -141,7 +142,7 @@ export const listJobs = async (
 export const getDeck = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     if (!req.user) {
@@ -155,7 +156,7 @@ export const getDeck = async (
       dayKey,
     }).lean();
     const swipedTodayFromSwipes = await Swipe.countDocuments(
-      getTodaySwipeFilter(req.user.id, dayKey),
+      getTodaySwipeFilter(req.user.id, dayKey)
     );
     const swipedToday = Math.max(quota?.count ?? 0, swipedTodayFromSwipes);
 
@@ -212,7 +213,7 @@ export const getDeck = async (
 export const swipeJob = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     if (!req.user) {
@@ -255,7 +256,7 @@ export const swipeJob = async (
     }
 
     const swipedTodayFromSwipes = await Swipe.countDocuments(
-      getTodaySwipeFilter(req.user.id, dayKey),
+      getTodaySwipeFilter(req.user.id, dayKey)
     );
     if (swipedTodayFromSwipes >= DAILY_SWIPE_LIMIT) {
       return res.status(429).json({
@@ -314,7 +315,7 @@ export const swipeJob = async (
 export const getRecommendedJobs = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     if (!req.user) {
@@ -338,9 +339,9 @@ export const getRecommendedJobs = async (
 };
 
 export const getJobById = async (
-  req: Request,
+  req: Request<IdParams>,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const { id } = req.params;
@@ -364,7 +365,7 @@ export const getJobById = async (
         .lean();
 
       recommendation = bilan?.conclusion.recommendedJobs.find(
-        (j) => j.id === id,
+        (j) => j.id === id
       );
     }
 

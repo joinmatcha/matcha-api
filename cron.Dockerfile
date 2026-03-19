@@ -1,27 +1,27 @@
 # Stage 1: Build
 FROM node:22.2.0-alpine AS builder
 
-WORKDIR /app/matcha-api
+WORKDIR /app
 
 RUN corepack enable
 
-COPY matcha-api/package.json matcha-api/yarn.lock ./
+COPY package.json ./
 RUN yarn install
 
-COPY matcha-api ./
+COPY . .
 RUN yarn build  # génère /dist
 
 # Stage 2: Runtime (plus léger)
 FROM node:22.2.0-alpine
 
-WORKDIR /app/matcha-api
+WORKDIR /app
 
 RUN corepack enable
 
-COPY matcha-api/package.json matcha-api/yarn.lock ./
+COPY package.json ./
 RUN yarn install --production
 
 # Copie uniquement les fichiers buildés
-COPY --from=builder /app/matcha-api/dist ./dist
+COPY --from=builder /app/dist ./dist
 
 CMD ["node", "dist/scripts/cleanup-unverified-users.js"]

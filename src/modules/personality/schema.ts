@@ -6,7 +6,7 @@ export const submitPersonalitySchema = z.object({
       z.object({
         questionId: z.string().min(1),
         value: z.number(),
-      }),
+      })
     )
     .min(1),
 });

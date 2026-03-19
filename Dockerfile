@@ -2,15 +2,15 @@
 # Stage: dev (hot reload)  #
 ############################
 FROM node:22.2.0-alpine AS dev
-WORKDIR /app/matcha-api
+WORKDIR /app
 RUN corepack enable
 
-# Installe les deps d'après le workspace API uniquement
-COPY matcha-api/package.json matcha-api/yarn.lock ./
+# Installe les deps du repo API
+COPY package.json ./
 RUN yarn install
 
 # Code source
-COPY matcha-api ./
+COPY . .
 
 EXPOSE 3000
 # Dev: ts-node-dev (défini dans package.json de l'API)
@@ -21,12 +21,12 @@ CMD ["yarn", "dev"]
 # Stage: builder (TypeScript -> JS)
 #################################
 FROM node:22.2.0-alpine AS builder
-WORKDIR /app/matcha-api
+WORKDIR /app
 RUN corepack enable
 
-COPY matcha-api/package.json matcha-api/yarn.lock ./
+COPY package.json ./
 RUN yarn install
-COPY matcha-api ./
+COPY . .
 RUN yarn build   # produit ./dist
 
 
@@ -35,15 +35,15 @@ RUN yarn build   # produit ./dist
 #################################
 FROM node:22.2.0-alpine AS production
 ENV NODE_ENV=production
-WORKDIR /app/matcha-api
+WORKDIR /app
 RUN corepack enable
 
 # Dépendances prod uniquement
-COPY matcha-api/package.json matcha-api/yarn.lock ./
+COPY package.json ./
 RUN yarn install --production
 
 # Copie du build
-COPY --from=builder /app/matcha-api/dist ./dist
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
