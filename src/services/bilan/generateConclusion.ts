@@ -1,8 +1,10 @@
+import {
+  type RecommendedJob,
+  findRecommendedJobs,
+} from '@/services/jobs/matching';
 import { BilanConclusionDTO } from '@/types/bilan';
 import { resolveArchetype } from '@/utils/archetypeResolver';
 import { mapSubdomainsToLabels } from '@/utils/bilanLabelMapper';
-
-import { findRecommendedJobs } from '../jobMatching';
 
 interface GenerateConclusionInput {
   competenceStrengths: string[];
@@ -79,8 +81,8 @@ export const generateConclusion = async ({
   const recommendedEnvironments = [
     ...new Set(
       recommendedJobs
-        .map((j) => j.sector)
-        .filter((s): s is string => Boolean(s))
+        .map((job: RecommendedJob) => job.sector)
+        .filter((sector): sector is string => Boolean(sector))
     ),
   ];
 

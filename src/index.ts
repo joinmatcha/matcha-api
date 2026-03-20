@@ -3,12 +3,14 @@ import 'dotenv/config';
 import app from '@/app';
 import { connectDB } from '@/config/db';
 import { env } from '@/config/env';
+import { ensureInitialAdmin } from '@/services/admin/bootstrap';
 
 const PORT = env.PORT;
 
 (async () => {
   try {
     await connectDB();
+    await ensureInitialAdmin();
     const server = app.listen(PORT, () => {
       console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
     });

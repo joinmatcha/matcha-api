@@ -17,10 +17,10 @@ const PersonalityTestSchema = new Schema(
       index: true,
     },
 
-    // lien vers le template (questions/profils) utilisé pour ce passage
+    // lien vers la version de test (questions/profils) utilisée pour ce passage
     templateId: {
       type: Types.ObjectId,
-      ref: 'PersonalityTemplate',
+      ref: 'PersonalityVersion',
       required: true,
       index: true,
     },

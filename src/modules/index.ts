@@ -1,5 +1,6 @@
 import { Express } from 'express';
 
+import adminRoutes from '@/modules/admin/route';
 import authRoutes from '@/modules/auth/route';
 import bilanRoutes from '@/modules/bilan/route';
 import healthRoutes from '@/modules/health/route';
@@ -9,6 +10,7 @@ import profileRoutes from '@/modules/profile/route';
 import userRoutes from '@/modules/users/route';
 
 export const registerRoutes = (app: Express): void => {
+  app.use('/api/admin', adminRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/health', healthRoutes);
   app.use('/api/users', userRoutes);

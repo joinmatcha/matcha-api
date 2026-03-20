@@ -21,6 +21,7 @@
     "seed:personality": "ts-node -r tsconfig-paths/register src/scripts/seed-personality.ts",
     "seed:bilan": "ts-node -r tsconfig-paths/register src/scripts/seed-bilan.ts",
     "seed:jobs": "ts-node -r tsconfig-paths/register src/scripts/seed-jobs.ts",
+    "admin:promote": "ts-node -r tsconfig-paths/register src/scripts/promote-admin.ts",
     "reset:swipes": "ts-node -r tsconfig-paths/register src/scripts/reset-swipes.ts",
     "mongo:start": "docker compose up -d mongo",
     "mongo:stop": "docker compose stop mongo",

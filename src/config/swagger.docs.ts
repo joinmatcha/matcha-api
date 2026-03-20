@@ -727,4 +727,583 @@ export const swaggerDocs = {
  *         description: Token manquant
  */
 `,
+
+  // ==================== ADMIN ====================
+  adminLogin: `
+/**
+ * @swagger
+ * /api/admin/auth/login:
+ *   post:
+ *     summary: Authentification administrateur
+ *     tags: [Admin]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: admin@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: StrongPassw0rd!
+ *     responses:
+ *       200:
+ *         description: Connexion admin réussie
+ *       401:
+ *         description: Identifiants invalides
+ *       403:
+ *         description: Accès admin requis
+ */
+`,
+
+  adminUsers: `
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Lister les utilisateurs pour le back-office
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [user, admin]
+ *       - in: query
+ *         name: subscription
+ *         schema:
+ *           type: string
+ *           enum: [free, premium]
+ *       - in: query
+ *         name: isEmailVerified
+ *         schema:
+ *           type: boolean
+ *     responses:
+ *       200:
+ *         description: Liste paginée des utilisateurs
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès admin requis
+ */
+`,
+
+  adminUpdateUser: `
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   patch:
+ *     summary: Modifier un utilisateur depuis le back-office
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *               subscription:
+ *                 type: string
+ *                 enum: [free, premium]
+ *               isEmailVerified:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Utilisateur mis à jour
+ *       400:
+ *         description: Données invalides
+ *       404:
+ *         description: Utilisateur introuvable
+ *       409:
+ *         description: Email déjà utilisé
+ */
+`,
+
+  adminJobs: `
+/**
+ * @swagger
+ * /api/admin/jobs:
+ *   get:
+ *     summary: Lister les métiers pour le back-office
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste paginée des métiers
+ *   post:
+ *     summary: Créer un métier depuis le back-office
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - growthOutlook
+ *             properties:
+ *               title:
+ *                 type: string
+ *               sector:
+ *                 type: string
+ *               growthOutlook:
+ *                 type: string
+ *                 enum: [stable, growing, declining, unknown]
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Métier créé
+ *       400:
+ *         description: Données invalides
+ */
+`,
+
+  adminUpdateJob: `
+/**
+ * @swagger
+ * /api/admin/jobs/{id}:
+ *   patch:
+ *     summary: Modifier un métier depuis le back-office
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Métier mis à jour
+ *       404:
+ *         description: Métier introuvable
+ */
+`,
+
+  adminPersonalityVersions: `
+/**
+ * @swagger
+ * /api/admin/personality-versions:
+ *   get:
+ *     summary: Lister les templates de test de personnalité
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste paginée des templates
+ *   post:
+ *     summary: Créer un template de personnalité
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Template créé
+ */
+`,
+
+  adminUpdatePersonalityVersion: `
+/**
+ * @swagger
+ * /api/admin/personality-versions/{id}:
+ *   patch:
+ *     summary: Modifier un template de personnalité
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Template mis à jour
+ *       404:
+ *         description: Template introuvable
+ */
+`,
+
+  adminDuplicatePersonalityVersion: `
+/**
+ * @swagger
+ * /api/admin/personality-versions/{id}/duplicate:
+ *   post:
+ *     summary: Dupliquer un template de personnalité vers une nouvelle version
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - version
+ *             properties:
+ *               version:
+ *                 type: string
+ *                 example: 2.0
+ *               title:
+ *                 type: string
+ *               summary:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Nouvelle version créée
+ *       409:
+ *         description: Version déjà existante
+ */
+`,
+
+  adminActivatePersonalityVersion: `
+/**
+ * @swagger
+ * /api/admin/personality-versions/{id}/activate:
+ *   post:
+ *     summary: Activer une version de template de personnalité
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Template activé, les autres versions sont désactivées
+ *       400:
+ *         description: Template invalide pour activation
+ *       404:
+ *         description: Template introuvable
+ */
+`,
+
+  adminDeactivatePersonalityVersion: `
+/**
+ * @swagger
+ * /api/admin/personality-versions/{id}/deactivate:
+ *   post:
+ *     summary: Désactiver une version de template de personnalité
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Template désactivé
+ *       404:
+ *         description: Template introuvable
+ */
+`,
+
+  adminTemplateQuestions: `
+/**
+ * @swagger
+ * /api/admin/personality-versions/{id}/questions:
+ *   post:
+ *     summary: Ajouter une question à un template de personnalité
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Question ajoutée
+ *       409:
+ *         description: Identifiant de question déjà utilisé dans le template
+ */
+`,
+
+  adminTemplateQuestionUpdateDelete: `
+/**
+ * @swagger
+ * /api/admin/personality-versions/{id}/questions/{questionId}:
+ *   patch:
+ *     summary: Modifier une question précise d'un template
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Question mise à jour
+ *       404:
+ *         description: Question introuvable
+ *       409:
+ *         description: Identifiant de question déjà utilisé
+ *   delete:
+ *     summary: Supprimer une question précise d'un template
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Question supprimée
+ *       404:
+ *         description: Question introuvable
+ */
+`,
+
+  adminBilanQuestions: `
+/**
+ * @swagger
+ * /api/admin/bilan-questions:
+ *   get:
+ *     summary: Lister les questions de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste paginée des questions
+ *   post:
+ *     summary: Créer une question de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Question créée
+ *       409:
+ *         description: Code déjà utilisé
+ */
+`,
+
+  adminBilanVersions: `
+/**
+ * @swagger
+ * /api/admin/bilan-versions:
+ *   get:
+ *     summary: Lister les versions de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste paginée des versions de bilan
+ *   post:
+ *     summary: Créer une version de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Version de bilan créée
+ *       409:
+ *         description: Version déjà existante
+ */
+`,
+
+  adminUpdateBilanVersion: `
+/**
+ * @swagger
+ * /api/admin/bilan-versions/{version}:
+ *   patch:
+ *     summary: Modifier une version de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: version
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Version de bilan mise à jour
+ *       404:
+ *         description: Version de bilan introuvable
+ */
+`,
+
+  adminDuplicateBilanVersion: `
+/**
+ * @swagger
+ * /api/admin/bilan-versions/{version}/duplicate:
+ *   post:
+ *     summary: Dupliquer une version de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: version
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: Version de bilan dupliquée
+ *       404:
+ *         description: Version source introuvable
+ *       409:
+ *         description: Version cible déjà existante
+ */
+`,
+
+  adminActivateBilanVersion: `
+/**
+ * @swagger
+ * /api/admin/bilan-versions/{version}/activate:
+ *   post:
+ *     summary: Activer une version de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: version
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Version de bilan activée
+ *       400:
+ *         description: Aucune question active sur cette version
+ *       404:
+ *         description: Version introuvable
+ */
+`,
+
+  adminDeactivateBilanVersion: `
+/**
+ * @swagger
+ * /api/admin/bilan-versions/{version}/deactivate:
+ *   post:
+ *     summary: Désactiver une version de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: version
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Version de bilan désactivée
+ *       404:
+ *         description: Version introuvable
+ */
+`,
+
+  adminUpdateBilanQuestion: `
+/**
+ * @swagger
+ * /api/admin/bilan-questions/{id}:
+ *   patch:
+ *     summary: Modifier une question de bilan
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Question mise à jour
+ *       404:
+ *         description: Question introuvable
+ *       409:
+ *         description: Code déjà utilisé
+ */
+`,
 };

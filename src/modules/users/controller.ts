@@ -4,8 +4,8 @@ import { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
 
 import User from '@/models/User';
-import { sendValidationEmail } from '@/services/email';
-import { computePreferences } from '@/services/preferences';
+import { sendValidationEmail } from '@/services/notifications/email';
+import { computePreferences } from '@/services/users/preferences';
 import { UserRegisterInput } from '@/types/user';
 import { hashToken } from '@/utils/token';
 

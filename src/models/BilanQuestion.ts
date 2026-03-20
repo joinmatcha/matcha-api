@@ -24,7 +24,7 @@ export interface BilanQuestionDocument extends Document {
 
 const BilanQuestionSchema = new Schema<BilanQuestionDocument>(
   {
-    code: { type: String, required: true, unique: true }, // identifiant fonctionnel
+    code: { type: String, required: true }, // identifiant fonctionnel
     domain: {
       type: String,
       required: true,
@@ -52,6 +52,7 @@ const BilanQuestionSchema = new Schema<BilanQuestionDocument>(
 
 // index pratique pour récupérer toutes les questions d’une version
 BilanQuestionSchema.index({ version: 1, domain: 1 });
+BilanQuestionSchema.index({ version: 1, code: 1 }, { unique: true });
 
 export const BilanQuestion: Model<BilanQuestionDocument> =
   model<BilanQuestionDocument>('BilanQuestion', BilanQuestionSchema);

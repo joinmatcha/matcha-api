@@ -21,6 +21,12 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().default('no-reply@matcha.com'),
   SMTP_PASS: z.string().optional(),
+
+  INITIAL_ADMIN_EMAIL: z.string().email().optional(),
+  INITIAL_ADMIN_PASSWORD: z.string().min(8).optional(),
+  INITIAL_ADMIN_FIRST_NAME: z.string().default('Admin'),
+  INITIAL_ADMIN_LAST_NAME: z.string().default('Matcha'),
+  INITIAL_ADMIN_FORCE_PASSWORD_RESET: z.coerce.boolean().default(false),
 });
 
 export const env = envSchema.parse(process.env);

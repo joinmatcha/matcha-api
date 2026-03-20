@@ -3,8 +3,10 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 
 import app from '@/app';
-import PersonalityTemplate from '@/models/PersonalityTemplate';
+import { PersonalityProfile } from '@/models/PersonalityProfile';
+import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import PersonalityTest from '@/models/PersonalityTest';
+import { PersonalityVersion } from '@/models/PersonalityVersion';
 import User from '@/models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'testsecret';
@@ -19,19 +21,31 @@ const authHeader = () => {
 
 describe('Personality API', () => {
   beforeEach(async () => {
-    await PersonalityTemplate.deleteMany({});
+    await PersonalityVersion.deleteMany({});
+    await PersonalityQuestion.deleteMany({});
+    await PersonalityProfile.deleteMany({});
     await PersonalityTest.deleteMany({});
   });
 
   describe('GET /api/personality/active', () => {
     it('should return the active test', async () => {
-      await PersonalityTemplate.create({
+      const version = await PersonalityVersion.create({
         title: 'MBTI Test',
         summary: 'Découvre ton type',
         isActive: true,
+        status: 'active',
         version: '1.0',
-        questions: [{ id: 'q1', text: '...', dimension: 'EI' }],
-        profiles: [],
+      });
+
+      await PersonalityQuestion.create({
+        versionId: version._id,
+        version: version.version,
+        code: 'q1',
+        text: '...',
+        dimension: 'EI',
+        options: [],
+        order: 1,
+        isActive: true,
       });
 
       const res = await request(app)
@@ -88,18 +102,28 @@ describe('Personality API', () => {
         consentAccepted: true,
       });
 
-      const template = await PersonalityTemplate.create({
+      const version = await PersonalityVersion.create({
         title: 'MBTI Test',
         isActive: true,
+        status: 'active',
         version: '1.0',
-        questions: [{ id: 'q1', text: '...', dimension: 'EI' }],
-        profiles: [],
+      });
+
+      await PersonalityQuestion.create({
+        versionId: version._id,
+        version: version.version,
+        code: 'q1',
+        text: '...',
+        dimension: 'EI',
+        options: [],
+        order: 1,
+        isActive: true,
       });
 
       const test = await PersonalityTest.create({
         userId: user._id,
-        templateId: template._id,
-        templateVersion: '1.0',
+        templateId: version._id,
+        templateVersion: version.version,
         type: 'ENTP',
         result: 'Innovateur',
       });
@@ -125,26 +149,66 @@ describe('Personality API', () => {
 
   describe('POST /api/personality/submit', () => {
     beforeEach(async () => {
-      await PersonalityTemplate.create({
+      const version = await PersonalityVersion.create({
         title: 'Test MBTI',
         isActive: true,
+        status: 'active',
         version: '1.0',
-        questions: [
-          { id: 'q1', text: '...', dimension: 'EI' },
-          { id: 'q2', text: '...', dimension: 'SN' },
-          { id: 'q3', text: '...', dimension: 'TF' },
-          { id: 'q4', text: '...', dimension: 'JP' },
-        ],
-        profiles: [
-          {
-            key: 'ESTJ',
-            label: 'Leader pragmatique',
-            description: 'Efficace et orienté résultats',
-            strengths: ['Leadership'],
-            weaknesses: ['Rigidité'],
-            recommendedJobs: ['Manager'],
-          },
-        ],
+      });
+
+      await PersonalityQuestion.insertMany([
+        {
+          versionId: version._id,
+          version: version.version,
+          code: 'q1',
+          text: '...',
+          dimension: 'EI',
+          options: [],
+          order: 1,
+          isActive: true,
+        },
+        {
+          versionId: version._id,
+          version: version.version,
+          code: 'q2',
+          text: '...',
+          dimension: 'SN',
+          options: [],
+          order: 2,
+          isActive: true,
+        },
+        {
+          versionId: version._id,
+          version: version.version,
+          code: 'q3',
+          text: '...',
+          dimension: 'TF',
+          options: [],
+          order: 3,
+          isActive: true,
+        },
+        {
+          versionId: version._id,
+          version: version.version,
+          code: 'q4',
+          text: '...',
+          dimension: 'JP',
+          options: [],
+          order: 4,
+          isActive: true,
+        },
+      ]);
+
+      await PersonalityProfile.create({
+        versionId: version._id,
+        version: version.version,
+        key: 'ESTJ',
+        label: 'Leader pragmatique',
+        description: 'Efficace et orienté résultats',
+        strengths: ['Leadership'],
+        weaknesses: ['Rigidité'],
+        recommendedJobs: ['Manager'],
+        isActive: true,
       });
     });
 

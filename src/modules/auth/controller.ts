@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 import { env } from '@/config/env';
 import User from '@/models/User';
-import { sendResetPasswordEmail } from '@/services/email';
+import { sendResetPasswordEmail } from '@/services/notifications/email';
 import { RequestPasswordResetInput, ResetPasswordInput } from '@/types/user';
 
 interface LoginRequest {
@@ -39,7 +39,7 @@ export const login = async (
     }
 
     const token = jwt.sign(
-      { id: user._id, email: user.email },
+      { id: user._id, email: user.email, role: user.role },
       env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -52,6 +52,7 @@ export const login = async (
         firstName: user.firstName,
         lastName: user.lastName,
         subscription: user.subscription,
+        role: user.role,
       },
     });
   } catch (err) {

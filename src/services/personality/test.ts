@@ -1,7 +1,7 @@
-import PersonalityTemplate from '@/models/PersonalityTemplate';
 import PersonalityTest from '@/models/PersonalityTest';
 import User from '@/models/User';
-import { computePersonality } from '@/services/personality';
+import { computePersonality } from '@/services/personality/compute';
+import { getActivePersonalityVersion } from '@/services/personality/version';
 import { HttpError } from '@/utils/httpError';
 
 export interface PersonalityAnswerInput {
@@ -46,7 +46,7 @@ export const getUserPersonalityStatus = async (userId: string) => {
     };
   }
 
-  const test = await PersonalityTemplate.findOne({ isActive: true }).lean();
+  const test = await getActivePersonalityVersion();
   if (!test) {
     throw new HttpError(404, 'Aucun test actif trouvé');
   }
@@ -70,8 +70,7 @@ export const submitUserPersonalityTest = async (
   }
 
   try {
-    const result = await computePersonality(userId, answers);
-    return result;
+    return await computePersonality(userId, answers);
   } catch (error) {
     const mongoError = error as { code?: number };
     if (mongoError.code === 11000) {

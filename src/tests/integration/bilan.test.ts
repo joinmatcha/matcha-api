@@ -6,6 +6,7 @@ import app from '@/app';
 import { BilanAnswerSet } from '@/models/BilanAnswerSet';
 import { BilanCompetence } from '@/models/BilanCompetence';
 import { BilanQuestion } from '@/models/BilanQuestion';
+import { BilanVersion } from '@/models/BilanVersion';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'testsecret';
 
@@ -20,12 +21,20 @@ const authHeader = (id?: string) => {
 describe('Bilan API', () => {
   beforeEach(async () => {
     await BilanQuestion.deleteMany({});
+    await BilanVersion.deleteMany({});
     await BilanAnswerSet.deleteMany({});
     await BilanCompetence.deleteMany({});
   });
 
   describe('GET /api/bilan/questions', () => {
     it('should return latest version questions', async () => {
+      await BilanVersion.create({
+        version: 1,
+        title: 'Bilan V1',
+        isActive: true,
+        status: 'active',
+      });
+
       await BilanQuestion.create([
         {
           code: 'C1',
@@ -57,6 +66,53 @@ describe('Bilan API', () => {
       expect(res.body.questions.length).toBe(2);
     });
 
+    it('should prefer the active bilan version over the highest question version', async () => {
+      await BilanVersion.create([
+        {
+          version: 1,
+          title: 'Bilan V1',
+          isActive: true,
+          status: 'active',
+        },
+        {
+          version: 2,
+          title: 'Bilan V2',
+          isActive: false,
+          status: 'draft',
+        },
+      ]);
+
+      await BilanQuestion.create([
+        {
+          code: 'C1',
+          domain: 'competence',
+          subdomain: 'analysis',
+          question: 'Question v1',
+          type: 'likert_1_5',
+          version: 1,
+          isActive: true,
+        },
+        {
+          code: 'C2',
+          domain: 'competence',
+          subdomain: 'analysis',
+          question: 'Question v2',
+          type: 'likert_1_5',
+          version: 2,
+          isActive: true,
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/bilan/questions')
+        .set(authHeader());
+
+      expect(res.status).toBe(200);
+      expect(res.body.version).toBe(1);
+      expect(res.body.questions).toHaveLength(1);
+      expect(res.body.questions[0]).toHaveProperty('question', 'Question v1');
+    });
+
     it('should return 401 if not authenticated', async () => {
       const res = await request(app).get('/api/bilan/questions');
       expect(res.status).toBe(401);
@@ -65,6 +121,13 @@ describe('Bilan API', () => {
 
   describe('POST /api/bilan/answers', () => {
     beforeEach(async () => {
+      await BilanVersion.create({
+        version: 1,
+        title: 'Bilan V1',
+        isActive: true,
+        status: 'active',
+      });
+
       await BilanQuestion.create({
         code: 'C1',
         domain: 'competence',
@@ -114,6 +177,13 @@ describe('Bilan API', () => {
     const userId = new mongoose.Types.ObjectId().toString();
 
     beforeEach(async () => {
+      await BilanVersion.create({
+        version: 1,
+        title: 'Bilan V1',
+        isActive: true,
+        status: 'active',
+      });
+
       await BilanQuestion.create({
         code: 'C1',
         domain: 'competence',

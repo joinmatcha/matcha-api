@@ -4,7 +4,7 @@ import {
   getUserPersonalityStatus,
   resetUserPersonalityTest,
   submitUserPersonalityTest,
-} from '@/modules/personality/service';
+} from '@/services/personality/test';
 import { HttpError } from '@/utils/httpError';
 
 export const getActiveTest = async (

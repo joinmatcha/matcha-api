@@ -1,16 +1,22 @@
-import PersonalityTemplate from '@/models/PersonalityTemplate';
+import { PersonalityProfile } from '@/models/PersonalityProfile';
+import { PersonalityQuestion } from '@/models/PersonalityQuestion';
+import { PersonalityVersion } from '@/models/PersonalityVersion';
 
 export const seedPersonalityTest = async () => {
-  const existing = await PersonalityTemplate.findOne({ isActive: true });
+  const existing = await PersonalityVersion.findOne({ isActive: true });
   if (existing) return;
 
-  await PersonalityTemplate.create({
+  const version = await PersonalityVersion.create({
     title: 'Test de personnalité Matcha',
     summary:
       'Identifie ton profil professionnel selon 4 dimensions (Extraversion / Introversion, Sensation / Intuition, Pensée / Sentiment, Jugement / Perception). Inspiré du modèle MBTI, adapté aux environnements professionnels.',
     isActive: true,
+    status: 'active',
     version: '1.0',
-    profiles: [
+  });
+
+  await PersonalityProfile.insertMany(
+    [
       {
         key: 'INTJ',
         label: 'Stratège',
@@ -163,167 +169,172 @@ export const seedPersonalityTest = async () => {
         weaknesses: ['Désorganisé', 'Émotif'],
         recommendedJobs: ['Animateur', 'Vendeur', 'Comédien'],
       },
-    ],
+    ].map((profile) => ({
+      ...profile,
+      versionId: version._id,
+      version: version.version,
+      isActive: true,
+    }))
+  );
 
-    questions: [
-      // E vs I
+  await PersonalityQuestion.insertMany(
+    [
       {
-        id: 'q1',
+        code: 'q1',
         text: 'Je me ressource au contact des autres.',
         dimension: 'EI',
         options: likert(),
       },
       {
-        id: 'q2',
+        code: 'q2',
         text: 'Je préfère travailler seul que collaborer en groupe.',
         dimension: 'EI',
         options: likert(true),
       },
       {
-        id: 'q3',
+        code: 'q3',
         text: 'Je parle souvent avant de réfléchir.',
         dimension: 'EI',
         options: likert(),
       },
       {
-        id: 'q4',
+        code: 'q4',
         text: 'Je préfère écouter plutôt que prendre la parole.',
         dimension: 'EI',
         options: likert(true),
       },
       {
-        id: 'q5',
+        code: 'q5',
         text: 'Les environnements dynamiques me stimulent.',
         dimension: 'EI',
         options: likert(),
       },
       {
-        id: 'q6',
+        code: 'q6',
         text: 'Les réunions me fatiguent rapidement.',
         dimension: 'EI',
         options: likert(true),
       },
-
-      // S vs N
       {
-        id: 'q7',
+        code: 'q7',
         text: 'Je me fie davantage aux faits qu’à mon intuition.',
         dimension: 'SN',
         options: likert(true),
       },
       {
-        id: 'q8',
+        code: 'q8',
         text: 'J’aime explorer des idées abstraites.',
         dimension: 'SN',
         options: likert(),
       },
       {
-        id: 'q9',
+        code: 'q9',
         text: 'Je préfère les tâches concrètes et mesurables.',
         dimension: 'SN',
         options: likert(true),
       },
       {
-        id: 'q10',
+        code: 'q10',
         text: 'Je me projette facilement dans le futur.',
         dimension: 'SN',
         options: likert(),
       },
       {
-        id: 'q11',
+        code: 'q11',
         text: 'Je remarque les détails avant tout.',
         dimension: 'SN',
         options: likert(true),
       },
       {
-        id: 'q12',
+        code: 'q12',
         text: 'Je fais souvent confiance à mon instinct.',
         dimension: 'SN',
         options: likert(),
       },
-
-      // T vs F
       {
-        id: 'q13',
+        code: 'q13',
         text: 'Je me base sur la logique avant de prendre une décision.',
         dimension: 'TF',
         options: likert(true),
       },
       {
-        id: 'q14',
+        code: 'q14',
         text: 'Je prends en compte l’impact émotionnel de mes choix.',
         dimension: 'TF',
         options: likert(),
       },
       {
-        id: 'q15',
+        code: 'q15',
         text: 'Je préfère être juste que gentil.',
         dimension: 'TF',
         options: likert(true),
       },
       {
-        id: 'q16',
-        text: 'Je m’assure que tout le monde se sente bien avant de décider.',
+        code: 'q16',
+        text: 'Je cherche à maintenir l’harmonie autour de moi.',
         dimension: 'TF',
         options: likert(),
       },
       {
-        id: 'q17',
-        text: 'Je valorise la logique plus que l’harmonie.',
+        code: 'q17',
+        text: 'J’accorde plus d’importance aux principes qu’aux personnes.',
         dimension: 'TF',
         options: likert(true),
       },
       {
-        id: 'q18',
-        text: 'Je suis sensible aux émotions des autres.',
+        code: 'q18',
+        text: 'Je suis touché par les émotions des autres.',
         dimension: 'TF',
         options: likert(),
       },
-
-      // J vs P
       {
-        id: 'q19',
-        text: 'Je planifie toujours avant d’agir.',
+        code: 'q19',
+        text: 'J’aime planifier à l’avance.',
         dimension: 'JP',
         options: likert(true),
       },
       {
-        id: 'q20',
-        text: 'Je préfère improviser plutôt que planifier.',
+        code: 'q20',
+        text: 'Je préfère improviser selon les circonstances.',
         dimension: 'JP',
         options: likert(),
       },
       {
-        id: 'q21',
+        code: 'q21',
         text: 'Je respecte les délais à la lettre.',
         dimension: 'JP',
         options: likert(true),
       },
       {
-        id: 'q22',
+        code: 'q22',
         text: 'Je m’adapte facilement aux imprévus.',
         dimension: 'JP',
         options: likert(),
       },
       {
-        id: 'q23',
+        code: 'q23',
         text: 'J’aime suivre une routine stable.',
         dimension: 'JP',
         options: likert(true),
       },
       {
-        id: 'q24',
+        code: 'q24',
         text: 'Je préfère garder mes options ouvertes.',
         dimension: 'JP',
         options: likert(),
       },
-    ],
-  });
+    ].map((question, index) => ({
+      ...question,
+      versionId: version._id,
+      version: version.version,
+      order: index + 1,
+      isActive: true,
+    }))
+  );
 
   console.log('✅ Test de personnalité complet seedé avec succès');
 };
 
-// Helper Likert scale
 function likert(reverse = false) {
   const base = [
     { value: -2, label: 'Pas du tout d’accord' },
