@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 
 dotenv.config({ path: '.env.test' });
 
-jest.mock('@/services/email', () => ({
+jest.mock('@/services/notifications/email', () => ({
   sendValidationEmail: jest.fn().mockResolvedValue(undefined),
   sendResetPasswordEmail: jest.fn().mockResolvedValue(undefined),
   sendEmailChangeVerification: jest.fn().mockResolvedValue(undefined),

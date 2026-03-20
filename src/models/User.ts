@@ -31,6 +31,12 @@ const UserSchema = new Schema(
       enum: ['free', 'premium'],
       default: 'free',
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+      index: true,
+    },
 
     // Emploi & localisation
     jobTypes: [{ type: String, trim: true }],

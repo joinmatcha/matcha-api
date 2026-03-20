@@ -6,14 +6,7 @@ import { env } from '@/config/env';
 interface JwtPayload {
   id: string;
   email?: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
+  role?: 'user' | 'admin';
 }
 
 export const requireAuth = (
@@ -40,4 +33,22 @@ export const requireAuth = (
     console.error('❌ Invalid token:', err);
     res.status(401).json({ message: 'Invalid or expired token' });
   }
+};
+
+export const requireAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  if (req.user.role !== 'admin') {
+    res.status(403).json({ message: 'Admin access required' });
+    return;
+  }
+
+  next();
 };

@@ -55,19 +55,21 @@ yarn down
 
 ## Scripts
 
-| Script                | Description                             |
-| --------------------- | --------------------------------------- |
-| `yarn dev`            | Démarre MongoDB puis l'API en local     |
-| `yarn dev:api`        | Démarre seulement l'API en local        |
-| `yarn build`          | Compile TypeScript vers `dist/`         |
-| `yarn start`          | Lance l'API compilée                    |
-| `yarn lint`           | Vérifie ESLint                          |
-| `yarn test`           | Exécute les tests Jest                  |
-| `yarn test:coverage`  | Exécute les tests avec couverture       |
-| `yarn cleanup:users`  | Exécute une fois le script de nettoyage |
-| `yarn mongo:start`    | Démarre MongoDB seul                    |
-| `yarn docker:dev`     | Démarre MongoDB + API via Docker        |
-| `yarn docker:cleanup` | Démarre MongoDB + API + cron via Docker |
+| Script                     | Description                                 |
+| -------------------------- | ------------------------------------------- |
+| `yarn dev`                 | Démarre MongoDB puis l'API en local         |
+| `yarn dev:api`             | Démarre seulement l'API en local            |
+| `yarn build`               | Compile TypeScript vers `dist/`             |
+| `yarn start`               | Lance l'API compilée                        |
+| `yarn lint`                | Vérifie ESLint                              |
+| `yarn test`                | Exécute les tests Jest                      |
+| `yarn test:coverage`       | Exécute les tests avec couverture           |
+| `yarn cleanup:users`       | Exécute une fois le script de nettoyage     |
+| `yarn admin:promote`       | Promeut un utilisateur en administrateur    |
+| `yarn migrate:personality` | Migre les anciens templates de personnalité |
+| `yarn mongo:start`         | Démarre MongoDB seul                        |
+| `yarn docker:dev`          | Démarre MongoDB + API via Docker            |
+| `yarn docker:cleanup`      | Démarre MongoDB + API + cron via Docker     |
 
 ## Environment variables
 
@@ -82,7 +84,38 @@ JWT_SECRET=replace_with_a_long_random_secret
 API_URL=http://localhost:3000
 FRONTEND_URL=http://localhost:8081
 CLIENT_URL=http://localhost:8081
+INITIAL_ADMIN_EMAIL=admin@matcha.local
+INITIAL_ADMIN_PASSWORD=ChangeMe123!
+INITIAL_ADMIN_FIRST_NAME=Admin
+INITIAL_ADMIN_LAST_NAME=Matcha
+INITIAL_ADMIN_FORCE_PASSWORD_RESET=false
 ```
+
+## Back-office admin
+
+Les routes BO sont exposées sous `/api/admin`.
+
+- `POST /api/admin/auth/login` pour obtenir un JWT admin
+- utiliser ensuite le header `Authorization: Bearer <token>`
+- la doc est disponible dans Swagger sur `/api-docs`
+
+Deux options existent pour créer un premier admin :
+
+```bash
+yarn admin:promote user@example.com
+```
+
+Ou automatiquement au démarrage via les variables d'environnement :
+
+```env
+INITIAL_ADMIN_EMAIL=admin@matcha.local
+INITIAL_ADMIN_PASSWORD=ChangeMe123!
+INITIAL_ADMIN_FIRST_NAME=Admin
+INITIAL_ADMIN_LAST_NAME=Matcha
+INITIAL_ADMIN_FORCE_PASSWORD_RESET=false
+```
+
+Si `INITIAL_ADMIN_EMAIL` existe déjà, l'utilisateur est promu admin. Le mot de passe n'est réécrit que si `INITIAL_ADMIN_FORCE_PASSWORD_RESET=true`.
 
 ## CI
 

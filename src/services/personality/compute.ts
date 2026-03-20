@@ -1,6 +1,6 @@
-import PersonalityTemplate from '@/models/PersonalityTemplate';
 import PersonalityTest from '@/models/PersonalityTest';
 import User from '@/models/User';
+import { getActivePersonalityVersion } from '@/services/personality/version';
 
 interface Answer {
   questionId: string;
@@ -24,8 +24,8 @@ interface TemplateProfile {
 }
 
 export async function computePersonality(userId: string, answers: Answer[]) {
-  const template = await PersonalityTemplate.findOne({ isActive: true });
-  if (!template) throw new Error('Aucun test actif trouvé.');
+  const version = await getActivePersonalityVersion();
+  if (!version) throw new Error('Aucun test actif trouvé.');
 
   // Initialisation des dimensions principales
   const scores: Record<PersonalityDimension, number> = {
@@ -36,7 +36,7 @@ export async function computePersonality(userId: string, answers: Answer[]) {
   };
 
   const questionsById = new Map<string, TemplateQuestion>(
-    (template.questions as unknown as TemplateQuestion[]).map((q) => [q.id, q])
+    (version.questions as TemplateQuestion[]).map((q) => [q.id, q])
   );
 
   // Calcul du score pour chaque dimension
@@ -55,15 +55,15 @@ export async function computePersonality(userId: string, answers: Answer[]) {
     (scores.JP >= 0 ? 'J' : 'P');
 
   // Recherche du profil associé
-  const profile = (template.profiles as unknown as TemplateProfile[]).find(
+  const profile = (version.profiles as TemplateProfile[]).find(
     (p) => p.key === type
   );
 
   // Sauvegarde du test complet
   const test = await PersonalityTest.create({
     userId,
-    templateId: template._id,
-    templateVersion: template.version,
+    templateId: version.id,
+    templateVersion: version.version,
     answers,
 
     type,

@@ -2,8 +2,9 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import app from '@/app';
-import PersonalityTemplate from '@/models/PersonalityTemplate';
+import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import PersonalityTest from '@/models/PersonalityTest';
+import { PersonalityVersion } from '@/models/PersonalityVersion';
 import User from '@/models/User';
 
 const BASE_URL = '/api/profile';
@@ -65,18 +66,28 @@ describe('GET /api/profile', () => {
     });
     if (!user) throw new Error('User not found');
 
-    const template = await PersonalityTemplate.create({
+    const version = await PersonalityVersion.create({
       title: 'MBTI Test',
       isActive: true,
+      status: 'active',
       version: '1.0',
-      questions: [{ id: 'q1', text: '...', dimension: 'EI' }],
-      profiles: [],
+    });
+
+    await PersonalityQuestion.create({
+      versionId: version._id,
+      version: version.version,
+      code: 'q1',
+      text: '...',
+      dimension: 'EI',
+      options: [],
+      order: 1,
+      isActive: true,
     });
 
     const test = await PersonalityTest.create({
       userId: user._id,
-      templateId: template._id,
-      templateVersion: '1.0',
+      templateId: version._id,
+      templateVersion: version.version,
       type: 'ENTP',
       result: 'Innovateur',
       traits: ['Créatif'],

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 import { Job } from '@/models/Job';
-import { findRecommendedJobs } from '@/services/jobMatching';
+import { findRecommendedJobs } from '@/services/jobs/matching';
 
 describe('findRecommendedJobs', () => {
   beforeEach(async () => {

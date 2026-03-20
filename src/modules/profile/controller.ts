@@ -9,7 +9,7 @@ import PersonalityTest from '@/models/PersonalityTest';
 import Recommendation from '@/models/Recommendation';
 import SkillsAssessment from '@/models/SkillsAssessment';
 import User from '@/models/User';
-import { sendEmailChangeVerification } from '@/services/email';
+import { sendEmailChangeVerification } from '@/services/notifications/email';
 import { UserProfile, UserProfileUpdateInput } from '@/types/user';
 import { mapUserToProfile } from '@/utils/mapUserToProfile';
 import { hashToken } from '@/utils/token';
