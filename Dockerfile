@@ -1,7 +1,7 @@
 ############################
 # Stage: dev (hot reload)  #
 ############################
-FROM node:22.2.0-alpine AS dev
+FROM node:22.16.0-alpine AS dev
 WORKDIR /app
 RUN corepack enable
 
@@ -20,7 +20,7 @@ CMD ["yarn", "dev"]
 #################################
 # Stage: builder (TypeScript -> JS)
 #################################
-FROM node:22.2.0-alpine AS builder
+FROM node:22.16.0-alpine AS builder
 WORKDIR /app
 RUN corepack enable
 
@@ -33,7 +33,7 @@ RUN yarn build   # produit ./dist
 #################################
 # Stage: production (runtime léger)
 #################################
-FROM node:22.2.0-alpine AS production
+FROM node:22.16.0-alpine AS production
 ENV NODE_ENV=production
 WORKDIR /app
 RUN corepack enable
