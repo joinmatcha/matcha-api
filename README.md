@@ -1,131 +1,294 @@
 # matcha-api
 
-API REST Node.js/TypeScript pour Matcha, basée sur Express et MongoDB.
+API REST pour Matcha, application mobile d'aide à la reconversion professionnelle.
 
-## Prerequisites
+## Stack technique
 
-- Node.js 22.16.0
-- Yarn Classic 1.22.x
-- Docker et Docker Compose
+- **Runtime** : Node.js 22.16.0
+- **Framework** : Express.js
+- **Langage** : TypeScript
+- **Base de données** : MongoDB (Mongoose)
+- **Authentification** : JWT
+- **Envoi d'emails** : Nodemailer (SMTP Gmail)
+- **Upload d'images** : Cloudinary
+- **Documentation API** : Swagger (accessible sur `/api-docs`)
+
+## Prérequis
+
+- [Node.js](https://nodejs.org/) 22.16.0 (voir `.nvmrc`)
+- [Yarn](https://classic.yarnpkg.com/) 1.22.x
+- [Docker](https://www.docker.com/) et Docker Compose
 
 ## Installation
 
 ```bash
+git clone git@github.com:joinmatcha/matcha-api.git
+cd matcha-api
 yarn install
 cp .env.example .env
 ```
 
-## Development
+Remplacer les valeurs préfixées `BW_` par les vrais secrets disponibles sur le **Bitwarden de l'organisation Matcha** (compte `matcha.api.gpe@gmail.com`).
 
-Lancer l'API en local. Cette commande démarre aussi MongoDB via Docker si besoin :
+## Lancement en local
+
+### Avec MongoDB local (Docker)
+
+Démarre MongoDB puis l'API avec hot reload :
 
 ```bash
 yarn dev
 ```
 
-Lancer uniquement l'API locale, sans démarrer MongoDB :
+### API seule (si MongoDB tourne déjà)
 
 ```bash
 yarn dev:api
 ```
 
-Lancer MongoDB via Docker :
+### Stack complète via Docker Compose
 
-```bash
-yarn mongo:start
-```
-
-Lancer la stack Docker API + Mongo :
+API + MongoDB :
 
 ```bash
 yarn docker:dev
 ```
 
-Lancer Mongo + API + cron de nettoyage :
+API + MongoDB + cron de nettoyage des utilisateurs non vérifiés :
 
 ```bash
 yarn docker:cleanup
 ```
 
-Arrêter les conteneurs :
+Arrêter tous les conteneurs :
 
 ```bash
 yarn down
 ```
 
-## Scripts
+## Variables d'environnement
 
-| Script                     | Description                                 |
-| -------------------------- | ------------------------------------------- |
-| `yarn dev`                 | Démarre MongoDB puis l'API en local         |
-| `yarn dev:api`             | Démarre seulement l'API en local            |
-| `yarn build`               | Compile TypeScript vers `dist/`             |
-| `yarn start`               | Lance l'API compilée                        |
-| `yarn lint`                | Vérifie ESLint                              |
-| `yarn test`                | Exécute les tests Jest                      |
-| `yarn test:coverage`       | Exécute les tests avec couverture           |
-| `yarn cleanup:users`       | Exécute une fois le script de nettoyage     |
-| `yarn admin:promote`       | Promeut un utilisateur en administrateur    |
-| `yarn migrate:personality` | Migre les anciens templates de personnalité |
-| `yarn mongo:start`         | Démarre MongoDB seul                        |
-| `yarn docker:dev`          | Démarre MongoDB + API via Docker            |
-| `yarn docker:cleanup`      | Démarre MongoDB + API + cron via Docker     |
+| Variable                             | Description                                         | Valeur par défaut       | Sensible |
+| ------------------------------------ | --------------------------------------------------- | ----------------------- | -------- |
+| `PORT`                               | Port du serveur                                     | `3000`                  | Non      |
+| `MONGODB_URI`                        | Connection string MongoDB                           | -                       | Oui      |
+| `MONGODB_DB`                         | Nom de la base de données                           | `matcha`                | Non      |
+| `APP_NAME`                           | Nom de l'application                                | `matcha-api`            | Non      |
+| `NODE_ENV`                           | Environnement (`development`, `test`, `production`) | `development`           | Non      |
+| `CLIENT_URL`                         | URL du client (CORS)                                | `*`                     | Non      |
+| `API_URL`                            | URL publique de l'API                               | `http://localhost:3000` | Non      |
+| `FRONTEND_URL`                       | URL du frontend (liens dans les emails)             | `http://localhost:8081` | Non      |
+| `JWT_SECRET`                         | Clé de signature des tokens JWT                     | -                       | Oui      |
+| `SMTP_HOST`                          | Serveur SMTP                                        | `smtp.gmail.com`        | Non      |
+| `SMTP_PORT`                          | Port SMTP                                           | `587`                   | Non      |
+| `SMTP_USER`                          | Adresse email d'envoi                               | -                       | Non      |
+| `SMTP_PASS`                          | Mot de passe d'application Gmail                    | -                       | Oui      |
+| `CLOUDINARY_URL`                     | URL de connexion Cloudinary                         | -                       | Oui      |
+| `CLOUDINARY_CLOUD_NAME`              | Nom du cloud Cloudinary                             | -                       | Non      |
+| `CLOUDINARY_API_KEY`                 | Clé API Cloudinary                                  | -                       | Oui      |
+| `CLOUDINARY_API_SECRET`              | Secret API Cloudinary                               | -                       | Oui      |
+| `INITIAL_ADMIN_EMAIL`                | Email de l'admin initial (créé au démarrage)        | -                       | Non      |
+| `INITIAL_ADMIN_PASSWORD`             | Mot de passe de l'admin initial                     | -                       | Oui      |
+| `INITIAL_ADMIN_FIRST_NAME`           | Prénom de l'admin initial                           | `Admin`                 | Non      |
+| `INITIAL_ADMIN_LAST_NAME`            | Nom de l'admin initial                              | `Matcha`                | Non      |
+| `INITIAL_ADMIN_FORCE_PASSWORD_RESET` | Forcer la réinitialisation du mot de passe admin    | `false`                 | Non      |
 
-## Environment variables
+Les valeurs sensibles sont stockées sur **Bitwarden** (organisation Matcha).
 
-Exemple minimal :
+## Base de données
 
-```env
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017
-MONGODB_DB=matcha_dev
-NODE_ENV=development
-JWT_SECRET=replace_with_a_long_random_secret
-API_URL=http://localhost:3000
-FRONTEND_URL=http://localhost:8081
-CLIENT_URL=http://localhost:8081
-INITIAL_ADMIN_EMAIL=admin@matcha.local
-INITIAL_ADMIN_PASSWORD=ChangeMe123!
-INITIAL_ADMIN_FIRST_NAME=Admin
-INITIAL_ADMIN_LAST_NAME=Matcha
-INITIAL_ADMIN_FORCE_PASSWORD_RESET=false
-```
+### Chargement des variables d'environnement
 
-## Back-office admin
+L'API utilise un mécanisme de chargement conditionnel du fichier `.env` :
 
-Les routes BO sont exposées sous `/api/admin`.
+- `NODE_ENV=development` → charge `.env.development` (MongoDB Atlas distant)
+- Sinon → charge `.env` (production ou test)
 
-- `POST /api/admin/auth/login` pour obtenir un JWT admin
-- utiliser ensuite le header `Authorization: Bearer <token>`
-- la doc est disponible dans Swagger sur `/api-docs`
+Ce mécanisme est défini dans `src/index.ts` et répliqué dans chaque script de seed.
 
-Deux options existent pour créer un premier admin :
+### Environnements
+
+| Environnement       | Base de données | Source                                   |
+| ------------------- | --------------- | ---------------------------------------- |
+| Local (Docker)      | `matcha_dev`    | MongoDB local (`localhost:27017`)        |
+| Development (Atlas) | `matcha_dev`    | MongoDB Atlas (cluster `matcha-cluster`) |
+| Test                | `matcha_test`   | MongoDB local (`localhost:27017`)        |
+| Production          | `matcha_dev`    | MongoDB Atlas (cluster `matcha-cluster`) |
+
+### Collections
+
+| Collection             | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `users`                | Comptes utilisateurs                                 |
+| `jobs`                 | Catalogue des métiers                                |
+| `personalitytemplates` | Templates de test de personnalité                    |
+| `personalitytests`     | Résultats des tests de personnalité                  |
+| `bilanquestions`       | Questions du bilan de compétences                    |
+| `bilancompetences`     | Référentiel de compétences                           |
+| `bilananswersets`      | Réponses aux bilans                                  |
+| `skillsassessments`    | Évaluations de compétences                           |
+| `recommendations`      | Recommandations de métiers                           |
+| `swipes`               | Historique des swipes (like/dislike sur les métiers) |
+| `chatsessions`         | Sessions de chat                                     |
+| `cvparsings`           | Résultats de parsing de CV                           |
+| `logfeedbacks`         | Logs de feedback utilisateur                         |
+
+## Seeds
+
+Les seeds permettent de peupler la base de données avec les données de référence nécessaires au fonctionnement de l'application.
+
+### Quand lancer les seeds ?
+
+- Au **premier déploiement** (base vide)
+- Après un **reset de la base de données**
+- Lors de la mise à jour du **catalogue de métiers** (nouveau fichier de jobs)
+
+### Sur MongoDB Atlas (distant)
 
 ```bash
-yarn admin:promote user@example.com
+NODE_ENV=development yarn seed:jobs
+NODE_ENV=development yarn seed:personality
+NODE_ENV=development yarn seed:bilan
 ```
 
-Ou automatiquement au démarrage via les variables d'environnement :
+### Sur MongoDB local
 
-```env
-INITIAL_ADMIN_EMAIL=admin@matcha.local
-INITIAL_ADMIN_PASSWORD=ChangeMe123!
-INITIAL_ADMIN_FIRST_NAME=Admin
-INITIAL_ADMIN_LAST_NAME=Matcha
-INITIAL_ADMIN_FORCE_PASSWORD_RESET=false
+```bash
+yarn seed:jobs
+yarn seed:personality
+yarn seed:bilan
 ```
 
-Si `INITIAL_ADMIN_EMAIL` existe déjà, l'utilisateur est promu admin. Le mot de passe n'est réécrit que si `INITIAL_ADMIN_FORCE_PASSWORD_RESET=true`.
+### Détail des scripts
 
-## CI
+| Script                  | Description                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `yarn seed:jobs`        | Peuple le catalogue des métiers (v2 par défaut). Supporte `v1`, `v2`, `v3` en argument |
+| `yarn seed:personality` | Peuple les templates de test de personnalité                                           |
+| `yarn seed:bilan`       | Peuple les questions et compétences du bilan                                           |
 
-Le repo embarque une GitHub Action locale qui exécute :
+### Autres scripts utilitaires
 
-- `yarn lint`
-- `yarn test:coverage`
-- `yarn build`
+| Script                       | Description                                                   |
+| ---------------------------- | ------------------------------------------------------------- |
+| `yarn admin:promote <email>` | Promeut un utilisateur existant en admin                      |
+| `yarn reset:swipes`          | Supprime tous les swipes (utile en phase de test)             |
+| `yarn cleanup:users`         | Supprime les utilisateurs non vérifiés dont le token a expiré |
 
-## Notes
+## Build et déploiement
 
-- Les Dockerfiles ont été adaptés pour fonctionner dans ce repo autonome, sans contexte monorepo.
-- `data/mongo/` est ignoré pour éviter de reversionner des fichiers Mongo locaux.
+### Build
+
+La compilation TypeScript se fait en deux étapes :
+
+1. `tsc` — compile le TypeScript en JavaScript dans `./dist`
+2. `tsc-alias` — résout les alias de chemins (`@/` → `src/`) dans le code compilé
+
+```bash
+yarn build
+```
+
+### Dockerfile
+
+Le Dockerfile utilise un **multi-stage build** avec 3 étapes :
+
+| Stage        | Base                  | Rôle                                                             |
+| ------------ | --------------------- | ---------------------------------------------------------------- |
+| `dev`        | `node:22.16.0-alpine` | Développement avec hot reload (`yarn dev`)                       |
+| `builder`    | `node:22.16.0-alpine` | Compilation TypeScript → JavaScript                              |
+| `production` | `node:22.16.0-alpine` | Runtime léger, dépendances prod uniquement, `node dist/index.js` |
+
+Un second Dockerfile (`cron.Dockerfile`) existe pour le service de nettoyage des utilisateurs non vérifiés.
+
+### Déploiement sur Render
+
+- **URL** : https://matcha-api-4eme.onrender.com
+- **Repo** : `joinmatcha/matcha-api`, branche `mvp-144`
+- **Runtime** : Docker (target `production`)
+- **Plan** : Free (l'instance s'éteint après 15 min d'inactivité, le premier appel peut prendre ~30s)
+- **Variables d'environnement** : configurées directement dans le dashboard Render
+
+Le déploiement se déclenche automatiquement à chaque push sur la branche `mvp-144`.
+
+## Scripts
+
+| Script                       | Description                                               |
+| ---------------------------- | --------------------------------------------------------- |
+| `yarn dev`                   | Démarre MongoDB (Docker) puis l'API avec hot reload       |
+| `yarn dev:api`               | Démarre l'API seule (MongoDB doit tourner)                |
+| `yarn build`                 | Compile TypeScript vers `dist/` avec résolution des alias |
+| `yarn start`                 | Lance l'API compilée (`node dist/index.js`)               |
+| `yarn lint`                  | Vérifie le code avec ESLint                               |
+| `yarn lint:fix`              | Corrige automatiquement les erreurs ESLint                |
+| `yarn format`                | Formate le code avec Prettier                             |
+| `yarn test`                  | Exécute les tests Jest                                    |
+| `yarn test:coverage`         | Exécute les tests avec rapport de couverture              |
+| `yarn seed:jobs`             | Peuple le catalogue des métiers                           |
+| `yarn seed:personality`      | Peuple les templates de personnalité                      |
+| `yarn seed:bilan`            | Peuple les données du bilan                               |
+| `yarn admin:promote <email>` | Promeut un utilisateur en admin                           |
+| `yarn reset:swipes`          | Supprime tous les swipes                                  |
+| `yarn cleanup:users`         | Supprime les utilisateurs non vérifiés expirés            |
+| `yarn mongo:start`           | Démarre MongoDB seul via Docker                           |
+| `yarn mongo:stop`            | Arrête MongoDB                                            |
+| `yarn mongo:logs`            | Affiche les logs MongoDB                                  |
+| `yarn docker:dev`            | Démarre API + MongoDB via Docker Compose                  |
+| `yarn docker:cleanup`        | Démarre API + MongoDB + cron via Docker Compose           |
+| `yarn down`                  | Arrête tous les conteneurs                                |
+
+## CI/CD
+
+Une GitHub Action (`.github/workflows/ci.yml`) s'exécute sur chaque push et pull request vers `main` et `develop1`.
+
+### Pipeline
+
+1. **Install** — `yarn install --frozen-lockfile`
+2. **Lint** — `yarn lint`
+3. **Tests** — `yarn test:coverage`
+4. **Build** — `yarn build`
+5. **Coverage** — génère un rapport de couverture, publié en commentaire sur la PR
+
+Si le lint ou les tests échouent, le build ne passe pas.
+
+## Architecture du projet
+
+```
+src/
+├── index.ts          # Point d'entrée, chargement dotenv, démarrage serveur
+├── app.ts            # Configuration Express (middlewares, routes, CORS)
+├── config/           # Configuration (env, base de données, Swagger)
+├── constants/        # Constantes de l'application
+├── middlewares/       # Middlewares Express (auth, validation, etc.)
+├── models/           # Modèles Mongoose (schémas MongoDB)
+├── modules/          # Modules métier (routes + contrôleurs)
+├── scripts/          # Scripts CLI (seeds, admin, cleanup)
+├── seeds/            # Données de seed (jobs, personnalité, bilan)
+├── services/         # Logique métier (email, matching, etc.)
+├── tests/            # Tests Jest
+├── types/            # Types TypeScript partagés
+└── utils/            # Fonctions utilitaires
+```
+
+## Accès aux services
+
+| Service                             | URL                                           | Connexion                                    |
+| ----------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| **Render** (hébergement API)        | https://dashboard.render.com                  | Google (`matcha.api.gpe@gmail.com`)          |
+| **MongoDB Atlas** (base de données) | https://cloud.mongodb.com                     | Google (`matcha.api.gpe@gmail.com`)          |
+| **Expo** (build mobile)             | https://expo.dev                              | Identifiants sur Bitwarden                   |
+| **GitHub** (code source)            | https://github.com/joinmatcha                 | Compte personnel (organisation `joinmatcha`) |
+| **Bitwarden** (secrets)             | https://vault.bitwarden.eu                    | Google (`matcha.api.gpe@gmail.com`)          |
+| **Swagger** (documentation API)     | https://matcha-api-4eme.onrender.com/api-docs | -                                            |
+
+### Back-office admin
+
+Les routes du back-office sont exposées sous `/api/admin`.
+
+1. Se connecter : `POST /api/admin/auth/login` pour obtenir un JWT admin
+2. Utiliser le header `Authorization: Bearer <token>` sur les requêtes suivantes
+3. La documentation complète est disponible sur `/api-docs`
+
+Deux méthodes pour créer un premier admin :
+
+- Via le script CLI : `yarn admin:promote user@example.com`
+- Automatiquement au démarrage via les variables `INITIAL_ADMIN_*` (voir section Variables d'environnement)
