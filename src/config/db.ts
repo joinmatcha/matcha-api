@@ -4,10 +4,11 @@ import { env } from '@/config/env';
 
 const dbName = env.NODE_ENV === 'test' ? env.MONGODB_DB_TEST : env.MONGODB_DB;
 
-const baseUri = env.MONGODB_URI.endsWith('/')
-  ? env.MONGODB_URI.slice(0, -1)
-  : env.MONGODB_URI;
-const uri = `${baseUri}/${dbName}`;
+const [uriBase, queryString] = env.MONGODB_URI.split('?');
+const cleanBase = uriBase.endsWith('/') ? uriBase.slice(0, -1) : uriBase;
+const uri = queryString
+  ? `${cleanBase}/${dbName}?${queryString}`
+  : `${cleanBase}/${dbName}`;
 
 export const connectDB = async (): Promise<void> => {
   try {
