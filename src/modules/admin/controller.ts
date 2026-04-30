@@ -6,7 +6,6 @@ import { Types } from 'mongoose';
 import { env } from '@/config/env';
 import { BilanQuestion } from '@/models/BilanQuestion';
 import { BilanVersion } from '@/models/BilanVersion';
-import { Job } from '@/models/Job';
 import { PersonalityProfile } from '@/models/PersonalityProfile';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
@@ -278,91 +277,6 @@ export const updateUserAdmin = async (
       res.status(409).json({ message: 'User with this email already exists' });
       return;
     }
-    next(error);
-  }
-};
-
-export const listJobsAdmin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const query = req.query as PaginationQuery & {
-      sector?: string;
-      isActive?: boolean;
-    };
-    const { page, limit, skip } = buildPagination(query);
-    const q = typeof query.q === 'string' ? query.q.trim() : '';
-
-    const filter: Record<string, unknown> = {};
-
-    if (q) {
-      filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-      ];
-    }
-
-    if (typeof query.isActive === 'boolean') {
-      filter.isActive = query.isActive;
-    }
-
-    if (query.sector) {
-      filter.sector = query.sector;
-    }
-
-    const [items, total] = await Promise.all([
-      Job.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit).lean(),
-      Job.countDocuments(filter),
-    ]);
-
-    res.status(200).json({
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit) || 1,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const createJobAdmin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const job = await Job.create(req.body);
-    res.status(201).json(job);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const updateJobAdmin = async (
-  req: Request<IdParams>,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const job = await Job.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
-
-    if (!job) {
-      res.status(404).json({ message: 'Job not found' });
-      return;
-    }
-
-    res.status(200).json(job);
-  } catch (error) {
     next(error);
   }
 };

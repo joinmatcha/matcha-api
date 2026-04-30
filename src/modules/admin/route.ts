@@ -9,7 +9,6 @@ import {
   adminLogin,
   createBilanQuestionAdmin,
   createBilanVersionAdmin,
-  createJobAdmin,
   createTemplateAdmin,
   deactivateBilanVersionAdmin,
   deactivateTemplateAdmin,
@@ -18,16 +17,20 @@ import {
   duplicateTemplateAdmin,
   listBilanQuestionsAdmin,
   listBilanVersionsAdmin,
-  listJobsAdmin,
   listTemplatesAdmin,
   listUsersAdmin,
   updateBilanQuestionAdmin,
   updateBilanVersionAdmin,
-  updateJobAdmin,
   updateTemplateAdmin,
   updateTemplateQuestionAdmin,
   updateUserAdmin,
 } from '@/modules/admin/controller';
+import {
+  getRomeStatusAdmin,
+  getRomeSyncRunAdmin,
+  listRomeSyncRunsAdmin,
+  startRomeSyncAdmin,
+} from '@/modules/admin/rome.controller';
 import {
   adminAddTemplateQuestionSchema,
   adminBilanQuestionListQuerySchema,
@@ -36,19 +39,17 @@ import {
   adminBilanVersionParamsSchema,
   adminCreateBilanQuestionSchema,
   adminCreateBilanVersionSchema,
-  adminCreateJobSchema,
   adminCreateTemplateSchema,
   adminDuplicateBilanVersionSchema,
   adminDuplicateTemplateSchema,
-  adminJobListQuerySchema,
-  adminJobParamsSchema,
   adminLoginSchema,
+  adminRomeSyncRunListQuerySchema,
+  adminRomeSyncRunParamsSchema,
   adminTemplateListQuerySchema,
   adminTemplateParamsSchema,
   adminTemplateQuestionParamsSchema,
   adminUpdateBilanQuestionSchema,
   adminUpdateBilanVersionSchema,
-  adminUpdateJobSchema,
   adminUpdateTemplateQuestionSchema,
   adminUpdateTemplateSchema,
   adminUpdateUserSchema,
@@ -74,13 +75,17 @@ router.patch(
   updateUserAdmin
 );
 
-router.get('/jobs', validate(adminJobListQuerySchema, 'query'), listJobsAdmin);
-router.post('/jobs', validate(adminCreateJobSchema), createJobAdmin);
-router.patch(
-  '/jobs/:id',
-  validate(adminJobParamsSchema, 'params'),
-  validate(adminUpdateJobSchema),
-  updateJobAdmin
+router.get('/rome/status', getRomeStatusAdmin);
+router.post('/rome/sync', startRomeSyncAdmin);
+router.get(
+  '/rome/sync-runs',
+  validate(adminRomeSyncRunListQuerySchema, 'query'),
+  listRomeSyncRunsAdmin
+);
+router.get(
+  '/rome/sync-runs/:id',
+  validate(adminRomeSyncRunParamsSchema, 'params'),
+  getRomeSyncRunAdmin
 );
 
 router.get(

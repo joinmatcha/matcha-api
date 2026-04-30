@@ -4,9 +4,9 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 
 import app from '@/app';
-import { Job } from '@/models/Job';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
+import { createRomeMetier } from '@/tests/helpers/rome';
 
 const hashToken = (rawToken: string): string =>
   crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -226,14 +226,12 @@ describe('GET /api/users/me/preferences', () => {
   it('should return computed preferences based on swipe history', async () => {
     const { user, token } = await createUserAndGetToken();
 
-    const job = await Job.create({
-      title: 'Développeur·se web',
-      isActive: true,
-      growthOutlook: 'stable',
-      sector: 'Tech',
-      competences: ['analysis'],
-      tags: ['web'],
-      workConditions: ['remote'],
+    const job = await createRomeMetier({
+      label: 'Développeur·se web',
+      domain: { label: 'Tech' },
+      skills: [{ label: 'analysis' }],
+      themes: [{ label: 'web' }],
+      workContexts: [{ label: 'remote' }],
     });
 
     await Swipe.create({
@@ -259,11 +257,9 @@ describe('GET /api/users/me/preferences', () => {
   it('should count dislikes separately from likes', async () => {
     const { user, token } = await createUserAndGetToken();
 
-    const job = await Job.create({
-      title: 'Designer UX',
-      isActive: true,
-      growthOutlook: 'stable',
-      sector: 'Design',
+    const job = await createRomeMetier({
+      label: 'Designer UX',
+      domain: { label: 'Design' },
     });
 
     await Swipe.create({

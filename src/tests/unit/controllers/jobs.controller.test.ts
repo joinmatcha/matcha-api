@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-import { Job } from '@/models/Job';
+import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
 import {
@@ -10,6 +10,7 @@ import {
   listJobs,
   swipeJob,
 } from '@/modules/jobs/controller';
+import { buildRomeMetier, createRomeMetier } from '@/tests/helpers/rome';
 
 const createResponse = () => {
   const res: any = {};
@@ -20,35 +21,32 @@ const createResponse = () => {
 
 describe('Jobs controller unit branches', () => {
   beforeEach(async () => {
-    await Job.deleteMany({});
+    await RomeMetier.deleteMany({});
     await Swipe.deleteMany({});
     await SwipeQuota.deleteMany({});
     jest.restoreAllMocks();
   });
 
   it('should list jobs with riasec query arrays and clamp oversized limits', async () => {
-    await Job.create([
-      {
-        title: 'Data Analyst',
-        isActive: true,
-        growthOutlook: 'growing',
-        sector: 'Tech',
-        riasec: ['RIASEC_I'],
-      },
-      {
-        title: 'Designer',
-        isActive: true,
-        growthOutlook: 'stable',
-        sector: 'Design',
-        riasec: ['RIASEC_A'],
-      },
-      {
-        title: 'Sales',
-        isActive: true,
-        growthOutlook: 'stable',
-        sector: 'Sales',
-        riasec: ['RIASEC_E'],
-      },
+    await RomeMetier.create([
+      buildRomeMetier({
+        code: 'M1403',
+        label: 'Data Analyst',
+        domain: { label: 'Tech' },
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+      }),
+      buildRomeMetier({
+        code: 'B1603',
+        label: 'Designer',
+        domain: { label: 'Design' },
+        riasec: { major: 'A', codes: ['RIASEC_A'] },
+      }),
+      buildRomeMetier({
+        code: 'D1402',
+        label: 'Sales',
+        domain: { label: 'Sales' },
+        riasec: { major: 'E', codes: ['RIASEC_E'] },
+      }),
     ]);
 
     const req: any = {
@@ -127,11 +125,7 @@ describe('Jobs controller unit branches', () => {
 
   it('should release the reserved quota slot when swipe creation hits a duplicate key', async () => {
     const userId = new mongoose.Types.ObjectId().toString();
-    const job = await Job.create({
-      title: 'Backend Developer',
-      isActive: true,
-      growthOutlook: 'stable',
-    });
+    const job = await createRomeMetier({ label: 'Backend Developer' });
 
     jest.spyOn(Swipe, 'findOne').mockReturnValue({
       select: jest.fn().mockReturnThis(),

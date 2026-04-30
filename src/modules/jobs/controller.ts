@@ -7,7 +7,8 @@ import {
   MAX_JOBS_PER_SECTOR,
 } from '@/constants/swipe';
 import { BilanCompetence } from '@/models/BilanCompetence';
-import { Job } from '@/models/Job';
+import { RomeMarketStat } from '@/models/RomeMarketStat';
+import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
 import { mapJobLabels } from '@/utils/jobLabelMapper';
@@ -67,6 +68,36 @@ async function reserveDailySwipeSlot(userId: string, dayKey: string) {
   }
 }
 
+function formatRomeJobSummary(job: any) {
+  return {
+    id: job._id.toString(),
+    code: job.code,
+    title: job.label,
+    sector: job.domain?.label ?? job.domain?.grandDomain?.label,
+    description: job.definition,
+    growthOutlook: 'unknown',
+    tags: [
+      ...(job.themes ?? []).map((theme: { label?: string }) => theme.label),
+      ...(job.sectors ?? []).map((sector: { label?: string }) => sector.label),
+    ].filter(Boolean),
+    riasec: job.riasec?.codes ?? [],
+  };
+}
+
+function formatMarketStats(market: any) {
+  if (!market) return null;
+
+  return {
+    territory: market.territory,
+    salary: market.salary,
+    offers: market.offers,
+    hires: market.hires,
+    demanders: market.demanders,
+    tension: market.tension,
+    lastSyncedAt: market.lastSyncedAt,
+  };
+}
+
 async function releaseDailySwipeSlot(userId: string, dayKey: string) {
   await SwipeQuota.updateOne(
     { userId, dayKey, count: { $gt: 0 } },
@@ -104,35 +135,43 @@ export const listJobs = async (
           : [];
 
     const filter: Record<string, unknown> = { isActive: true };
+    const andFilters: Record<string, unknown>[] = [];
 
     if (q.length > 0) {
-      filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-      ];
+      andFilters.push({
+        $or: [
+          { label: { $regex: q, $options: 'i' } },
+          { definition: { $regex: q, $options: 'i' } },
+          { 'appellations.label': { $regex: q, $options: 'i' } },
+        ],
+      });
     }
     if (sector.length > 0) {
-      filter.sector = sector;
+      andFilters.push({
+        $or: [
+          { 'domain.label': sector },
+          { 'domain.grandDomain.label': sector },
+          { 'sectors.label': sector },
+        ],
+      });
     }
     if (riasecList.length > 0) {
-      filter.riasec = { $in: riasecList };
+      filter['riasec.codes'] = { $in: riasecList };
+    }
+    if (andFilters.length > 0) {
+      filter.$and = andFilters;
     }
 
-    const jobs = await Job.find(filter)
-      .sort({ title: 1 })
+    const jobs = await RomeMetier.find(filter)
+      .sort({ label: 1 })
       .limit(limit)
-      .select('_id title sector description growthOutlook tags')
+      .select(
+        '_id code label definition domain riasec themes sectors transitions'
+      )
       .lean();
 
     return res.status(200).json({
-      jobs: jobs.map((job) => ({
-        id: job._id.toString(),
-        title: job.title,
-        sector: job.sector,
-        description: job.description,
-        growthOutlook: job.growthOutlook,
-        tags: job.tags ?? [],
-      })),
+      jobs: jobs.map(formatRomeJobSummary),
     });
   } catch (error) {
     next(error);
@@ -184,24 +223,33 @@ export const getDeck = async (
       ],
     }).distinct('jobId');
 
-    const jobs = await Job.aggregate([
+    const jobs = await RomeMetier.aggregate([
       { $match: { isActive: true, _id: { $nin: excludedSwipes } } },
-      { $group: { _id: '$sector', jobs: { $push: '$$ROOT' } } },
+      {
+        $group: {
+          _id: '$domain.label',
+          jobs: { $push: '$$ROOT' },
+        },
+      },
       { $project: { jobs: { $slice: ['$jobs', MAX_JOBS_PER_SECTOR] } } },
       { $unwind: '$jobs' },
       { $replaceRoot: { newRoot: '$jobs' } },
       { $sample: { size } },
-      { $project: { _id: 1, title: 1, description: 1, sector: 1, tags: 1 } },
+      {
+        $project: {
+          _id: 1,
+          code: 1,
+          label: 1,
+          definition: 1,
+          domain: 1,
+          themes: 1,
+          sectors: 1,
+        },
+      },
     ]);
 
     return res.status(200).json({
-      jobs: jobs.map((j) => ({
-        id: j._id.toString(),
-        title: j.title,
-        description: j.description,
-        sector: j.sector,
-        tags: j.tags ?? [],
-      })),
+      jobs: jobs.map(formatRomeJobSummary),
       remaining,
       limit: DAILY_SWIPE_LIMIT,
     });
@@ -237,7 +285,10 @@ export const swipeJob = async (
       return res.status(400).json({ message: 'jobId invalide' });
     }
 
-    const job = await Job.findOne({ _id: jobId, isActive: true });
+    const job = await RomeMetier.findOne({
+      _id: jobId,
+      isActive: true,
+    }).select('_id');
     if (!job) {
       return res.status(404).json({ message: 'Job introuvable' });
     }
@@ -338,6 +389,76 @@ export const getRecommendedJobs = async (
   }
 };
 
+export const getTopLikedJobs = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const limitParam =
+      typeof req.query.limit === 'string' ? Number(req.query.limit) : 3;
+    const limit = Number.isFinite(limitParam)
+      ? Math.max(1, Math.min(limitParam, 10))
+      : 3;
+
+    const jobs = await Swipe.aggregate([
+      {
+        $match: {
+          userId: new Types.ObjectId(req.user.id),
+          action: 'like',
+        },
+      },
+      {
+        $group: {
+          _id: '$jobId',
+          likesCount: { $sum: 1 },
+          lastLikedAt: { $max: '$swipedAt' },
+        },
+      },
+      { $sort: { likesCount: -1, lastLikedAt: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'romemetiers',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'job',
+        },
+      },
+      { $unwind: '$job' },
+      { $match: { 'job.isActive': true } },
+      {
+        $project: {
+          _id: '$job._id',
+          code: '$job.code',
+          label: '$job.label',
+          definition: '$job.definition',
+          domain: '$job.domain',
+          themes: '$job.themes',
+          sectors: '$job.sectors',
+          riasec: '$job.riasec',
+          likesCount: 1,
+          lastLikedAt: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      jobs: jobs.map((job) => ({
+        ...formatRomeJobSummary(job),
+        likesCount: job.likesCount,
+        lastLikedAt: job.lastLikedAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getJobById = async (
   req: Request<IdParams>,
   res: Response,
@@ -350,10 +471,16 @@ export const getJobById = async (
       return res.status(400).json({ message: 'Invalid job id' });
     }
 
-    const job = await Job.findOne({ _id: id, isActive: true }).lean();
+    const job = await RomeMetier.findOne({ _id: id, isActive: true }).lean();
+
     if (!job) {
       return res.status(404).json({ message: 'Job not found' });
     }
+
+    const market = await RomeMarketStat.findOne({ metierId: job._id })
+      .sort({ lastSyncedAt: -1 })
+      .select('-raw -__v')
+      .lean();
 
     let recommendation;
 
@@ -371,25 +498,27 @@ export const getJobById = async (
 
     return res.status(200).json({
       job: {
-        id: job._id.toString(),
-        title: job.title,
-        description: job.description,
-        sector: job.sector,
-
-        riasec: mapJobLabels.riasec(job.riasec),
-
-        competences: mapJobLabels.competences(job.competences),
-        softSkills: mapJobLabels.softSkills(job.softSkills),
-        values: mapJobLabels.values(job.values),
-        workConditions: mapJobLabels.workConditions(job.workConditions),
-
-        missions: job.missions ?? [],
-        dailyTasks: job.dailyTasks ?? [],
-        evolutionPaths: job.evolutionPaths ?? [],
-
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        growthOutlook: job.growthOutlook,
+        ...formatRomeJobSummary(job),
+        definition: job.definition,
+        accessToJob: job.accessToJob,
+        domain: job.domain,
+        riasec: mapJobLabels.riasec(job.riasec.codes),
+        appellations: job.appellations,
+        skills: job.skills,
+        skillGroups: job.skillGroups,
+        knowledge: job.knowledge,
+        knowledgeGroups: job.knowledgeGroups,
+        workContexts: job.workContexts,
+        themes: job.themes,
+        interests: job.interests,
+        trainingCodes: job.trainingCodes,
+        sectors: job.sectors,
+        relatedJobs: job.relatedJobs,
+        transitions: job.transitions,
+        isExecutive: job.isExecutive,
+        isRegulated: job.isRegulated,
+        market: formatMarketStats(market),
+        lastSyncedAt: job.lastSyncedAt,
       },
       recommendation,
     });

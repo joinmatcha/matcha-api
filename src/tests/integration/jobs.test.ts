@@ -4,9 +4,10 @@ import request from 'supertest';
 
 import app from '@/app';
 import { BilanCompetence } from '@/models/BilanCompetence';
-import { Job } from '@/models/Job';
+import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
+import { buildRomeMetier, createRomeMetier } from '@/tests/helpers/rome';
 
 const createUserAndGetToken = async () => {
   const email = `job-test-${Date.now()}@example.com`;
@@ -69,7 +70,7 @@ const createMinimalBilan = async ({
 
 describe('Jobs routes', () => {
   beforeEach(async () => {
-    await Job.deleteMany({});
+    await RomeMetier.deleteMany({});
     await BilanCompetence.deleteMany({});
     await User.deleteMany({});
   });
@@ -88,19 +89,17 @@ describe('Jobs routes', () => {
     it('should return a deck with jobs, remaining and limit', async () => {
       const { token } = await createUserAndGetToken();
 
-      await Job.create([
-        {
-          title: 'Développeur·se web',
-          isActive: true,
-          growthOutlook: 'stable',
-          sector: 'Tech',
-        },
-        {
-          title: 'Designer UX',
-          isActive: true,
-          growthOutlook: 'stable',
-          sector: 'Design',
-        },
+      await RomeMetier.create([
+        buildRomeMetier({
+          code: 'M1805',
+          label: 'Développeur·se web',
+          domain: { label: 'Tech' },
+        }),
+        buildRomeMetier({
+          code: 'B1603',
+          label: 'Designer UX',
+          domain: { label: 'Design' },
+        }),
       ]);
 
       const res = await request(app)
@@ -109,8 +108,8 @@ describe('Jobs routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.jobs).toHaveLength(2);
-      expect(res.body.remaining).toBe(20);
-      expect(res.body.limit).toBe(20);
+      expect(res.body.remaining).toBe(10);
+      expect(res.body.limit).toBe(10);
       expect(res.body.jobs[0]).toMatchObject({
         id: expect.any(String),
         title: expect.any(String),
@@ -121,7 +120,7 @@ describe('Jobs routes', () => {
       const { user, token } = await createUserAndGetToken();
 
       await Promise.all(
-        Array.from({ length: 20 }).map(() =>
+        Array.from({ length: 10 }).map(() =>
           Swipe.create({
             userId: user._id,
             jobId: new mongoose.Types.ObjectId(),
@@ -138,17 +137,13 @@ describe('Jobs routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.jobs).toHaveLength(0);
       expect(res.body.remaining).toBe(0);
-      expect(res.body.limit).toBe(20);
+      expect(res.body.limit).toBe(10);
     });
 
     it('should exclude jobs already swiped today', async () => {
       const { user, token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Développeur·se web',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Développeur·se web' });
 
       await Swipe.create({
         userId: user._id,
@@ -170,11 +165,7 @@ describe('Jobs routes', () => {
     it('should exclude jobs disliked within the last 30 days', async () => {
       const { user, token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Développeur·se web',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Développeur·se web' });
 
       const recentDislike = new Date();
       recentDislike.setDate(recentDislike.getDate() - 10);
@@ -199,11 +190,7 @@ describe('Jobs routes', () => {
     it('should include jobs disliked more than 30 days ago', async () => {
       const { user, token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Développeur·se web',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Développeur·se web' });
 
       const oldDislike = new Date();
       oldDislike.setDate(oldDislike.getDate() - 31);
@@ -228,21 +215,20 @@ describe('Jobs routes', () => {
     it('should list active jobs with normalized shape', async () => {
       const { token } = await createUserAndGetToken();
 
-      await Job.create([
-        {
-          title: 'Développeur backend',
-          isActive: true,
-          growthOutlook: 'growing',
-          sector: 'Tech',
-          tags: ['Node.js'],
-        },
-        {
-          title: 'Commercial',
+      await RomeMetier.create([
+        buildRomeMetier({
+          code: 'M1805',
+          label: 'Développeur backend',
+          domain: { label: 'Tech' },
+          themes: [{ label: 'Node.js' }],
+        }),
+        buildRomeMetier({
+          code: 'D1402',
+          label: 'Commercial',
           isActive: false,
-          growthOutlook: 'stable',
-          sector: 'Sales',
-          tags: ['B2B'],
-        },
+          domain: { label: 'Sales' },
+          themes: [{ label: 'B2B' }],
+        }),
       ]);
 
       const res = await request(app)
@@ -256,26 +242,24 @@ describe('Jobs routes', () => {
         id: expect.any(String),
         title: 'Développeur backend',
         sector: 'Tech',
-        growthOutlook: 'growing',
+        growthOutlook: 'unknown',
       });
     });
 
     it('should filter jobs with q and sector', async () => {
       const { token } = await createUserAndGetToken();
 
-      await Job.create([
-        {
-          title: 'Développeur frontend',
-          isActive: true,
-          growthOutlook: 'stable',
-          sector: 'Tech',
-        },
-        {
-          title: 'Chef de projet marketing',
-          isActive: true,
-          growthOutlook: 'stable',
-          sector: 'Marketing',
-        },
+      await RomeMetier.create([
+        buildRomeMetier({
+          code: 'M1805',
+          label: 'Développeur frontend',
+          domain: { label: 'Tech' },
+        }),
+        buildRomeMetier({
+          code: 'E1103',
+          label: 'Chef de projet marketing',
+          domain: { label: 'Marketing' },
+        }),
       ]);
 
       const res = await request(app)
@@ -363,11 +347,7 @@ describe('Jobs routes', () => {
     it('should return 201 and record a like', async () => {
       const { token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Dev',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Dev' });
 
       const res = await request(app)
         .post('/api/jobs/swipe')
@@ -377,18 +357,14 @@ describe('Jobs routes', () => {
       expect(res.status).toBe(201);
       expect(res.body.swipe.action).toBe('like');
       expect(res.body.swipe.jobId).toBe(job._id.toString());
-      expect(res.body.remaining).toBe(19);
-      expect(res.body.limit).toBe(20);
+      expect(res.body.remaining).toBe(9);
+      expect(res.body.limit).toBe(10);
     });
 
     it('should return 201 and record a dislike', async () => {
       const { token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Dev',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Dev' });
 
       const res = await request(app)
         .post('/api/jobs/swipe')
@@ -403,7 +379,7 @@ describe('Jobs routes', () => {
       const { user, token } = await createUserAndGetToken();
 
       await Promise.all(
-        Array.from({ length: 20 }).map(() =>
+        Array.from({ length: 10 }).map(() =>
           Swipe.create({
             userId: user._id,
             jobId: new mongoose.Types.ObjectId(),
@@ -413,11 +389,7 @@ describe('Jobs routes', () => {
         )
       );
 
-      const job = await Job.create({
-        title: 'Dev',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Dev' });
 
       const res = await request(app)
         .post('/api/jobs/swipe')
@@ -431,11 +403,7 @@ describe('Jobs routes', () => {
     it('should return 409 if job was already swiped today', async () => {
       const { user, token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Dev',
-        isActive: true,
-        growthOutlook: 'stable',
-      });
+      const job = await createRomeMetier({ label: 'Dev' });
 
       await Swipe.create({
         userId: user._id,
@@ -450,6 +418,78 @@ describe('Jobs routes', () => {
         .send({ jobId: job._id.toString(), action: 'like' });
 
       expect(res.status).toBe(409);
+    });
+  });
+
+  describe('GET /api/jobs/top-liked', () => {
+    it('should return the most liked jobs for the authenticated user', async () => {
+      const { user, token } = await createUserAndGetToken();
+      const otherUserId = new mongoose.Types.ObjectId();
+
+      const first = await createRomeMetier({
+        code: 'M1805',
+        label: 'Développeur·se web',
+        domain: { label: 'Tech' },
+      });
+      const second = await createRomeMetier({
+        code: 'B1603',
+        label: 'Designer UX',
+        domain: { label: 'Design' },
+      });
+      const third = await createRomeMetier({
+        code: 'D1402',
+        label: 'Commercial',
+        domain: { label: 'Commerce' },
+      });
+
+      await Swipe.create([
+        {
+          userId: user._id,
+          jobId: first._id,
+          action: 'like',
+          dayKey: '2026-04-20',
+        },
+        {
+          userId: user._id,
+          jobId: first._id,
+          action: 'like',
+          dayKey: '2026-04-21',
+        },
+        {
+          userId: user._id,
+          jobId: second._id,
+          action: 'like',
+          dayKey: '2026-04-20',
+        },
+        {
+          userId: user._id,
+          jobId: third._id,
+          action: 'dislike',
+          dayKey: '2026-04-20',
+        },
+        {
+          userId: otherUserId,
+          jobId: third._id,
+          action: 'like',
+          dayKey: '2026-04-20',
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/jobs/top-liked')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs).toHaveLength(2);
+      expect(res.body.jobs[0]).toMatchObject({
+        id: first._id.toString(),
+        title: 'Développeur·se web',
+        likesCount: 2,
+      });
+      expect(res.body.jobs[1]).toMatchObject({
+        id: second._id.toString(),
+        likesCount: 1,
+      });
     });
   });
 
@@ -501,16 +541,12 @@ describe('Jobs routes', () => {
     it('should return a job by id', async () => {
       const { token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Développeur·se web',
-        isActive: true,
-        riasec: ['RIASEC_I'],
-        competences: ['analysis'],
-        softSkills: ['autonomy'],
-        values: ['learning'],
-        workConditions: ['remote'],
-        description: 'Conçoit des applications web',
-        growthOutlook: 'growing',
+      const job = await createRomeMetier({
+        label: 'Développeur·se web',
+        definition: 'Conçoit des applications web',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [{ label: 'analysis' }],
+        workContexts: [{ label: 'remote' }],
       });
 
       const res = await request(app)
@@ -519,22 +555,18 @@ describe('Jobs routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.job.title).toBe('Développeur·se web');
-      expect(res.body.job.growthOutlook).toBe('growing');
+      expect(res.body.job.growthOutlook).toBe('unknown');
     });
 
     it('should include recommendation if job is part of user bilan', async () => {
       const { user, token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Développeur·se web',
-        isActive: true,
-        riasec: ['RIASEC_I'],
-        competences: ['analysis'],
-        softSkills: ['autonomy'],
-        values: ['learning'],
-        workConditions: ['remote'],
-        description: 'Conçoit des applications web',
-        growthOutlook: 'growing',
+      const job = await createRomeMetier({
+        label: 'Développeur·se web',
+        definition: 'Conçoit des applications web',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [{ label: 'analysis' }],
+        workContexts: [{ label: 'remote' }],
       });
 
       await createMinimalBilan({
@@ -542,7 +574,7 @@ describe('Jobs routes', () => {
         recommendedJobs: [
           {
             id: job._id.toString(),
-            title: job.title,
+            title: job.label,
             score: 75,
           },
         ],
@@ -582,11 +614,10 @@ describe('Jobs routes', () => {
     it('should not return inactive jobs', async () => {
       const { token } = await createUserAndGetToken();
 
-      const job = await Job.create({
-        title: 'Job inactif',
+      const job = await createRomeMetier({
+        label: 'Job inactif',
         isActive: false,
-        riasec: ['RIASEC_I'],
-        growthOutlook: 'stable',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
       });
 
       const res = await request(app)

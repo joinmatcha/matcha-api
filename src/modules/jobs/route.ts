@@ -6,6 +6,7 @@ import {
   getDeck,
   getJobById,
   getRecommendedJobs,
+  getTopLikedJobs,
   listJobs,
   swipeJob,
 } from '@/modules/jobs/controller';
@@ -13,6 +14,7 @@ import {
   jobIdParamsSchema,
   listJobsQuerySchema,
   swipeJobSchema,
+  topLikedJobsQuerySchema,
 } from '@/modules/jobs/schema';
 
 const router = Router();
@@ -20,6 +22,12 @@ const router = Router();
 router.get('/', requireAuth, validate(listJobsQuerySchema, 'query'), listJobs);
 router.get('/deck', requireAuth, getDeck);
 router.get('/recommended', requireAuth, getRecommendedJobs);
+router.get(
+  '/top-liked',
+  requireAuth,
+  validate(topLikedJobsQuerySchema, 'query'),
+  getTopLikedJobs
+);
 router.post('/swipe', requireAuth, validate(swipeJobSchema), swipeJob);
 router.get(
   '/:id',
