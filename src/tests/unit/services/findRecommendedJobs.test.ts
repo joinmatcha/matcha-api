@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
 
-import { Job } from '@/models/Job';
+import { RomeMetier } from '@/models/RomeMetier';
 import { findRecommendedJobs } from '@/services/jobs/matching';
+import { buildRomeMetier } from '@/tests/helpers/rome';
 
 describe('findRecommendedJobs', () => {
   beforeEach(async () => {
-    await Job.deleteMany({});
+    await RomeMetier.deleteMany({});
   });
 
   afterAll(async () => {
@@ -13,29 +14,23 @@ describe('findRecommendedJobs', () => {
   });
 
   it('returns only relevant jobs above the score threshold', async () => {
-    await Job.insertMany([
-      {
-        title: 'Développeur·se web',
-        isActive: true,
-        sector: 'Tech',
-        riasec: ['RIASEC_I'],
-        competences: ['analysis', 'digital'],
-        softSkills: ['autonomy'],
-        values: ['learning'],
-        workConditions: ['remote'],
-        growthOutlook: 'growing',
-      },
-      {
-        title: 'Job peu pertinent',
-        isActive: true,
-        sector: 'Autre',
-        riasec: ['RIASEC_R'],
-        competences: [],
-        softSkills: [],
-        values: [],
-        workConditions: [],
-        growthOutlook: 'stable',
-      },
+    await RomeMetier.insertMany([
+      buildRomeMetier({
+        code: 'M1805',
+        label: 'Développeur·se web',
+        domain: { label: 'Tech' },
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [{ label: 'analysis' }, { label: 'digital' }],
+        workContexts: [{ label: 'remote' }],
+      }),
+      buildRomeMetier({
+        code: 'X0001',
+        label: 'Job peu pertinent',
+        domain: { label: 'Autre' },
+        riasec: { major: 'R', codes: ['RIASEC_R'] },
+        skills: [],
+        workContexts: [],
+      }),
     ]);
 
     const input = {
@@ -54,27 +49,21 @@ describe('findRecommendedJobs', () => {
   });
 
   it('returns jobs sorted by score descending', async () => {
-    await Job.insertMany([
-      {
-        title: 'Job moyen',
-        isActive: true,
-        riasec: ['RIASEC_I'],
-        competences: ['analysis'],
-        softSkills: [],
-        values: [],
-        workConditions: [],
-        growthOutlook: 'stable',
-      },
-      {
-        title: 'Job fort',
-        isActive: true,
-        riasec: ['RIASEC_I'],
-        competences: ['analysis', 'digital'],
-        softSkills: ['autonomy'],
-        values: ['learning'],
-        workConditions: ['remote'],
-        growthOutlook: 'growing',
-      },
+    await RomeMetier.insertMany([
+      buildRomeMetier({
+        code: 'M0001',
+        label: 'Job moyen',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [{ label: 'analysis' }],
+        workContexts: [],
+      }),
+      buildRomeMetier({
+        code: 'M0002',
+        label: 'Job fort',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [{ label: 'analysis' }, { label: 'digital' }],
+        workContexts: [{ label: 'remote' }],
+      }),
     ]);
 
     const input = {
@@ -93,13 +82,14 @@ describe('findRecommendedJobs', () => {
   });
 
   it('respects the limit parameter', async () => {
-    await Job.insertMany(
+    await RomeMetier.insertMany(
       Array.from({ length: 10 }).map((_, i) => ({
-        title: `Job ${i}`,
-        isActive: true,
-        riasec: ['RIASEC_I'],
-        competences: ['analysis'],
-        growthOutlook: 'unknown',
+        ...buildRomeMetier({
+          code: `L${i}`,
+          label: `Job ${i}`,
+          riasec: { major: 'I', codes: ['RIASEC_I'] },
+          skills: [{ label: 'analysis' }],
+        }),
       }))
     );
 
@@ -117,14 +107,14 @@ describe('findRecommendedJobs', () => {
   });
 
   it('ignores inactive jobs', async () => {
-    await Job.insertMany([
-      {
-        title: 'Job inactif',
+    await RomeMetier.insertMany([
+      buildRomeMetier({
+        code: 'INACTIF',
+        label: 'Job inactif',
         isActive: false,
-        riasec: ['RIASEC_I'],
-        competences: ['analysis'],
-        growthOutlook: 'unknown',
-      },
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [{ label: 'analysis' }],
+      }),
     ]);
 
     const input = {

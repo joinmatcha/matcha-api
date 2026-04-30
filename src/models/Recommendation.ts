@@ -11,7 +11,7 @@ const RecommendationSchema = new Schema(
     suggestedJobs: [
       {
         type: Types.ObjectId,
-        ref: 'Job',
+        ref: 'RomeMetier',
         default: [],
       },
     ],

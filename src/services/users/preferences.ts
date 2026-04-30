@@ -1,4 +1,4 @@
-import { JobDocument } from '@/models/Job';
+import { RomeMetierDocument } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 
 const LIKE_WEIGHT = 1;
@@ -19,9 +19,9 @@ function topEntries(map: Map<string, number>, limit: number) {
 export async function computePreferences(userId: string) {
   const swipes = await Swipe.find({ userId })
     .sort({ swipedAt: -1 })
-    .populate<{ jobId: JobDocument }>({
+    .populate<{ jobId: RomeMetierDocument }>({
       path: 'jobId',
-      select: '_id title sector competences tags workConditions',
+      select: '_id label domain skills themes sectors workContexts',
       options: { lean: true },
     })
     .lean();
@@ -36,7 +36,7 @@ export async function computePreferences(userId: string) {
   let totalDislikes = 0;
 
   for (const swipe of swipes) {
-    const job = swipe.jobId as JobDocument;
+    const job = swipe.jobId as RomeMetierDocument;
     if (!job) continue;
 
     const weight = swipe.action === 'like' ? LIKE_WEIGHT : DISLIKE_WEIGHT;
@@ -46,18 +46,26 @@ export async function computePreferences(userId: string) {
       if (recentLikes.length < 10) {
         recentLikes.push({
           id: job._id.toString(),
-          title: job.title,
-          sector: job.sector ?? '',
+          title: job.label,
+          sector: job.domain?.label ?? job.domain?.grandDomain?.label ?? '',
         });
       }
     } else {
       totalDislikes++;
     }
 
-    if (job.sector) addScore(sectors, job.sector, weight);
-    for (const c of job.competences) addScore(competences, c, weight);
-    for (const t of job.tags) addScore(tags, t, weight);
-    for (const w of job.workConditions) addScore(workConditions, w, weight);
+    const sector = job.domain?.label ?? job.domain?.grandDomain?.label;
+    if (sector) addScore(sectors, sector, weight);
+    for (const skill of job.skills) addScore(competences, skill.label, weight);
+    for (const theme of job.themes) {
+      if (theme.label) addScore(tags, theme.label, weight);
+    }
+    for (const sectorItem of job.sectors) {
+      if (sectorItem.label) addScore(tags, sectorItem.label, weight);
+    }
+    for (const context of job.workContexts) {
+      addScore(workConditions, context.label, weight);
+    }
   }
 
   return {

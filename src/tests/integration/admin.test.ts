@@ -6,7 +6,6 @@ import request from 'supertest';
 import app from '@/app';
 import { BilanQuestion } from '@/models/BilanQuestion';
 import { BilanVersion } from '@/models/BilanVersion';
-import { Job } from '@/models/Job';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
 import User from '@/models/User';
@@ -260,83 +259,13 @@ describe('Admin routes', () => {
       expect(res.status).toBe(409);
     });
 
-    it('should create and update a job', async () => {
+    it('should filter personality versions, bilan versions, and bilan questions', async () => {
       const { admin, password } = await createAdmin();
       const loginRes = await request(app).post('/api/admin/auth/login').send({
         email: admin.email,
         password,
       });
       const token = loginRes.body.token;
-
-      const createRes = await request(app)
-        .post('/api/admin/jobs')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          title: 'Data Analyst',
-          growthOutlook: 'growing',
-          sector: 'Tech',
-        });
-
-      expect(createRes.status).toBe(201);
-      expect(createRes.body).toHaveProperty('title', 'Data Analyst');
-
-      const updateRes = await request(app)
-        .patch(`/api/admin/jobs/${createRes.body._id}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          isActive: false,
-        });
-
-      expect(updateRes.status).toBe(200);
-      expect(updateRes.body).toHaveProperty('isActive', false);
-
-      const job = await Job.findById(createRes.body._id);
-      expect(job?.isActive).toBe(false);
-    });
-
-    it('should validate admin job creation payloads', async () => {
-      const { admin, password } = await createAdmin();
-      const loginRes = await request(app).post('/api/admin/auth/login').send({
-        email: admin.email,
-        password,
-      });
-
-      const res = await request(app)
-        .post('/api/admin/jobs')
-        .set('Authorization', `Bearer ${loginRes.body.token}`)
-        .send({
-          title: '',
-          growthOutlook: 'invalid-status',
-        });
-
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should filter jobs, personality versions, bilan versions, and bilan questions', async () => {
-      const { admin, password } = await createAdmin();
-      const loginRes = await request(app).post('/api/admin/auth/login').send({
-        email: admin.email,
-        password,
-      });
-      const token = loginRes.body.token;
-
-      await Job.create([
-        {
-          title: 'Active Tech Job',
-          description: 'Analyse de donnees',
-          sector: 'Tech',
-          growthOutlook: 'growing',
-          isActive: true,
-        },
-        {
-          title: 'Archived Finance Job',
-          description: 'Finance operationnelle',
-          sector: 'Finance',
-          growthOutlook: 'stable',
-          isActive: false,
-        },
-      ]);
 
       const activePersonalityVersion = await PersonalityVersion.create({
         title: 'Version Active',
@@ -412,13 +341,8 @@ describe('Admin routes', () => {
         },
       ]);
 
-      const [jobsRes, personalityRes, bilanVersionsRes, bilanQuestionsRes] =
+      const [personalityRes, bilanVersionsRes, bilanQuestionsRes] =
         await Promise.all([
-          request(app)
-            .get(
-              '/api/admin/jobs?sector=Tech&isActive=true&q=Active&limit=1&page=1'
-            )
-            .set('Authorization', `Bearer ${token}`),
           request(app)
             .get('/api/admin/personality-versions?isActive=true&q=Active')
             .set('Authorization', `Bearer ${token}`),
@@ -433,16 +357,6 @@ describe('Admin routes', () => {
             )
             .set('Authorization', `Bearer ${token}`),
         ]);
-
-      expect(jobsRes.status).toBe(200);
-      expect(jobsRes.body.items).toHaveLength(1);
-      expect(jobsRes.body.items[0]).toHaveProperty('title', 'Active Tech Job');
-      expect(jobsRes.body.pagination).toMatchObject({
-        page: 1,
-        limit: 1,
-        total: 1,
-        totalPages: 1,
-      });
 
       expect(personalityRes.status).toBe(200);
       expect(personalityRes.body.items).toHaveLength(1);

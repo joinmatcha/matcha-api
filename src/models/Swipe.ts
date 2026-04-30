@@ -23,7 +23,7 @@ const SwipeSchema = new Schema<SwipeDocument>(
     },
     jobId: {
       type: Schema.Types.ObjectId,
-      ref: 'Job',
+      ref: 'RomeMetier',
       required: true,
     },
     action: {

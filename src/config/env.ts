@@ -27,6 +27,42 @@ const envSchema = z.object({
   INITIAL_ADMIN_FIRST_NAME: z.string().default('Admin'),
   INITIAL_ADMIN_LAST_NAME: z.string().default('Matcha'),
   INITIAL_ADMIN_FORCE_PASSWORD_RESET: z.coerce.boolean().default(false),
+
+  ROME_CLIENT_ID: z.string().optional(),
+  ROME_CLIENT_SECRET: z.string().optional(),
+  ROME_TOKEN_URL: z
+    .string()
+    .default(
+      'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire'
+    ),
+  ROME_METIERS_API_URL: z
+    .string()
+    .default('https://api.francetravail.io/partenaire/rome-metiers'),
+  ROME_FICHES_METIERS_API_URL: z
+    .string()
+    .default('https://api.francetravail.io/partenaire/rome-fiches-metiers'),
+  ROME_SCOPES: z.string().default('api_rome-metiersv1 nomenclatureRome'),
+  ROME_REQUEST_DELAY_MS: z.coerce.number().int().min(1000).default(1100),
+  ROME_FETCH_FICHES: z.coerce.boolean().default(true),
+  ROME_SYNC_MODE: z.enum(['summary', 'details', 'full']).default('full'),
+
+  MARKET_STATS_API_URL: z
+    .string()
+    .default(
+      'https://api.francetravail.io/partenaire/stats-offres-demandes-emploi'
+    ),
+  MARKET_STATS_SCOPES: z
+    .string()
+    .default('offresetdemandesemploi api_stats-offres-demandes-emploiv1'),
+  MARKET_STATS_REQUEST_DELAY_MS: z.coerce.number().int().min(100).default(250),
+  MARKET_STATS_TERRITORY_TYPE: z.string().default('NAT'),
+  MARKET_STATS_TERRITORY_CODE: z.string().default('FR'),
+  MARKET_STATS_SYNC_LIMIT: z.preprocess(
+    (value) => (value === '' || value === undefined ? undefined : value),
+    z.coerce.number().int().positive().optional()
+  ),
+
+  DAILY_SWIPE_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 export const env = envSchema.parse(process.env);

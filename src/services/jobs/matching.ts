@@ -1,4 +1,5 @@
-import { Job } from '@/models/Job';
+import { RomeMetier } from '@/models/RomeMetier';
+import { normalizeText } from '@/services/rome/utils';
 
 interface JobMatchInput {
   interestsProfile: string[];
@@ -22,93 +23,62 @@ export async function findRecommendedJobs(
   limit = 4,
   minScore = 60
 ): Promise<RecommendedJob[]> {
-  const jobs = await Job.find({
+  const normalizedCompetences = input.competenceStrengths.map(normalizeText);
+  const normalizedWorkConditions = input.topWorkConditions.map(normalizeText);
+
+  const jobs = await RomeMetier.find({
     isActive: true,
-    riasec: { $in: input.interestsProfile },
-    competences: { $in: input.competenceStrengths },
+    'riasec.codes': { $in: input.interestsProfile },
   })
     .select(
-      '_id title description sector riasec competences softSkills values workConditions'
+      '_id code label definition domain riasec skills workContexts transitions'
     )
     .lean();
 
-  const ranked: RecommendedJob[] = [];
-
-  for (const job of jobs) {
-    const riasecMatches = job.riasec.filter((r) =>
+  const ranked: RecommendedJob[] = jobs.map((job) => {
+    const riasecMatches = job.riasec.codes.filter((r) =>
       input.interestsProfile.includes(r)
     );
-    const competenceMatches = job.competences.filter((c) =>
-      input.competenceStrengths.includes(c)
+    const skillMatches = job.skills.filter((skill) =>
+      normalizedCompetences.some((competence) =>
+        normalizeText(skill.label).includes(competence)
+      )
     );
-
-    if (riasecMatches.length === 0 || competenceMatches.length === 0) {
-      continue;
-    }
-
-    const softSkillMatches = job.softSkills.filter((s) =>
-      input.softSkillStrengths.includes(s)
-    );
-    const valueMatches = job.values.filter((v) => input.topValues.includes(v));
-    const workConditionMatches = job.workConditions.filter((w) =>
-      input.topWorkConditions.includes(w)
+    const contextMatches = job.workContexts.filter((context) =>
+      normalizedWorkConditions.some((condition) =>
+        normalizeText(context.label).includes(condition)
+      )
     );
 
     const rawScore =
-      riasecMatches.length * 5 +
-      competenceMatches.length * 4 +
-      softSkillMatches.length * 3 +
-      valueMatches.length * 2 +
-      workConditionMatches.length;
-
-    const maxScore =
-      job.riasec.length * 5 +
-      job.competences.length * 4 +
-      job.softSkills.length * 3 +
-      job.values.length * 2 +
-      job.workConditions.length;
-
-    // sécurité (job mal seedé)
-    if (maxScore <= 0) continue;
-
-    const normalizedScore = Math.round((rawScore / maxScore) * 100);
-
-    // filtre de pertinence
-    if (normalizedScore < minScore) continue;
+      riasecMatches.length * 55 +
+      Math.min(skillMatches.length, 5) * 7 +
+      Math.min(contextMatches.length, 3) * 5;
+    const normalizedScore = Math.min(100, Math.round(rawScore));
 
     const reasons: string[] = [];
-
-    if (riasecMatches.length >= 2) {
-      reasons.push('Correspond fortement à tes centres d’intérêt');
-    } else {
+    if (riasecMatches.length > 0) {
       reasons.push('Compatible avec ton profil d’intérêts');
     }
-
-    if (competenceMatches.length >= 2) {
-      reasons.push('Mobilise plusieurs de tes compétences clés');
-    } else {
-      reasons.push('Mobilise une compétence clé');
+    if (skillMatches.length > 0) {
+      reasons.push('Mobilise des compétences proches de ton bilan');
     }
-
-    if (valueMatches.length) {
-      reasons.push('Aligné avec ce qui te motive au travail');
-    }
-
-    if (workConditionMatches.length) {
+    if (contextMatches.length > 0) {
       reasons.push('Compatible avec tes conditions de travail idéales');
     }
 
-    ranked.push({
+    return {
       id: job._id.toString(),
-      title: job.title,
-      description: job.description,
-      sector: job.sector,
+      title: job.label,
+      description: job.definition,
+      sector: job.domain?.label ?? job.domain?.grandDomain?.label,
       score: normalizedScore,
       reasons,
-    });
-  }
+    };
+  });
 
-  ranked.sort((a, b) => b.score - a.score);
-
-  return ranked.slice(0, limit);
+  return ranked
+    .filter((job) => job.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }

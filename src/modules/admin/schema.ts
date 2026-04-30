@@ -44,50 +44,13 @@ export const adminUpdateUserSchema = z
     message: 'At least one field is required',
   });
 
-export const adminJobListQuerySchema = paginationSchema.extend({
-  sector: z.string().trim().optional(),
-  isActive: z.coerce.boolean().optional(),
+export const adminRomeSyncRunParamsSchema = z.object({
+  id: z.string().regex(objectIdRegex, 'Invalid ROME sync run id'),
 });
 
-export const adminJobParamsSchema = z.object({
-  id: z.string().regex(objectIdRegex, 'Invalid job id'),
+export const adminRomeSyncRunListQuerySchema = paginationSchema.omit({
+  q: true,
 });
-
-const growthOutlookSchema = z.enum([
-  'stable',
-  'growing',
-  'declining',
-  'unknown',
-]);
-
-const baseJobSchema = z.object({
-  externalId: z.string().trim().optional(),
-  source: z.string().trim().optional(),
-  isActive: z.boolean().optional(),
-  title: z.string().trim().min(1),
-  description: z.string().trim().optional(),
-  sector: z.string().trim().optional(),
-  riasec: z.array(z.string().trim().min(1)).optional(),
-  competences: z.array(z.string().trim().min(1)).optional(),
-  softSkills: z.array(z.string().trim().min(1)).optional(),
-  values: z.array(z.string().trim().min(1)).optional(),
-  workConditions: z.array(z.string().trim().min(1)).optional(),
-  tags: z.array(z.string().trim().min(1)).optional(),
-  missions: z.array(z.string().trim().min(1)).optional(),
-  dailyTasks: z.array(z.string().trim().min(1)).optional(),
-  evolutionPaths: z.array(z.string().trim().min(1)).optional(),
-  salaryMin: z.number().int().nonnegative().optional(),
-  salaryMax: z.number().int().nonnegative().optional(),
-  growthOutlook: growthOutlookSchema,
-});
-
-export const adminCreateJobSchema = baseJobSchema;
-
-export const adminUpdateJobSchema = baseJobSchema
-  .partial()
-  .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required',
-  });
 
 const personalityOptionSchema = z.object({
   value: z.number(),

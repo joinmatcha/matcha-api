@@ -15,7 +15,7 @@ const TrainingSchema = new Schema(
     cost: { type: Number, min: 0 },
     cpfEligible: { type: Boolean, default: false },
 
-    relatedJobIds: [{ type: Types.ObjectId, ref: 'Job' }],
+    relatedJobIds: [{ type: Types.ObjectId, ref: 'RomeMetier' }],
 
     durationWeeks: { type: Number, min: 0 },
 
