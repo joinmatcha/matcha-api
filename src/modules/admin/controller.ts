@@ -4,11 +4,17 @@ import jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
 
 import { env } from '@/config/env';
+import { BilanCompetence } from '@/models/BilanCompetence';
 import { BilanQuestion } from '@/models/BilanQuestion';
 import { BilanVersion } from '@/models/BilanVersion';
 import { PersonalityProfile } from '@/models/PersonalityProfile';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
+import PersonalityTest from '@/models/PersonalityTest';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
+import { RomeAppellation } from '@/models/RomeAppellation';
+import { RomeMetier } from '@/models/RomeMetier';
+import { RomeSyncRun } from '@/models/RomeSyncRun';
+import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 
 type PaginationQuery = {
@@ -177,8 +183,15 @@ export const adminLogin = async (
       { expiresIn: '24h' }
     );
 
+    res.cookie(env.ADMIN_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
     res.status(200).json({
-      token,
       user: {
         id: user._id,
         email: user.email,
@@ -190,6 +203,16 @@ export const adminLogin = async (
   } catch (error) {
     next(error);
   }
+};
+
+export const adminLogout = (_req: Request, res: Response): void => {
+  res.clearCookie(env.ADMIN_COOKIE_NAME, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
+  res.status(200).json({ message: 'Logged out' });
 };
 
 export const listUsersAdmin = async (
@@ -245,6 +268,152 @@ export const listUsersAdmin = async (
         limit,
         total,
         totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStatsAdmin = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const [
+      totalUsers,
+      adminUsers,
+      premiumUsers,
+      verifiedUsers,
+      personalityTests,
+      bilanResults,
+      totalSwipes,
+      likedSwipes,
+      activeRomeMetiers,
+      activeRomeAppellations,
+      personalityVersions,
+      bilanVersions,
+      lastRomeRun,
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: 'admin' }),
+      User.countDocuments({ subscription: 'premium' }),
+      User.countDocuments({ isEmailVerified: true }),
+      PersonalityTest.countDocuments(),
+      BilanCompetence.countDocuments(),
+      Swipe.countDocuments(),
+      Swipe.countDocuments({ action: 'like' }),
+      RomeMetier.countDocuments({ isActive: true }),
+      RomeAppellation.countDocuments({ isActive: true }),
+      PersonalityVersion.countDocuments(),
+      BilanVersion.countDocuments(),
+      RomeSyncRun.findOne().sort({ createdAt: -1 }).lean(),
+    ]);
+
+    res.status(200).json({
+      users: {
+        total: totalUsers,
+        admins: adminUsers,
+        premium: premiumUsers,
+        verified: verifiedUsers,
+        verificationRate:
+          totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 100) : 0,
+      },
+      engagement: {
+        personalityTests,
+        bilanResults,
+        totalSwipes,
+        likedSwipes,
+      },
+      content: {
+        personalityVersions,
+        bilanVersions,
+        activeRomeMetiers,
+        activeRomeAppellations,
+      },
+      rome: {
+        lastRun: lastRomeRun
+          ? {
+              id: lastRomeRun._id.toString(),
+              status: lastRomeRun.status,
+              createdAt: lastRomeRun.createdAt,
+              finishedAt: lastRomeRun.finishedAt,
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserAdmin = async (
+  req: Request<IdParams>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const [user, personalityTests, bilans, swipeStats] = await Promise.all([
+      User.findById(req.params.id).select(USER_ADMIN_FIELDS).lean(),
+      PersonalityTest.find({ userId: req.params.id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      BilanCompetence.find({ user: req.params.id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      Swipe.aggregate([
+        { $match: { userId: new Types.ObjectId(req.params.id) } },
+        {
+          $group: {
+            _id: '$action',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const swipes = swipeStats.reduce(
+      (acc, item) => ({
+        ...acc,
+        [item._id]: item.count,
+      }),
+      { like: 0, dislike: 0 }
+    );
+
+    res.status(200).json({
+      user,
+      personalityTests: personalityTests.map((test) => ({
+        id: test._id.toString(),
+        templateVersion: test.templateVersion,
+        type: test.type,
+        result: test.result,
+        description: test.description,
+        traits: test.traits,
+        weaknesses: test.weaknesses,
+        motivationProfile: test.motivationProfile,
+        createdAt: test.createdAt,
+      })),
+      bilans: bilans.map((bilan) => ({
+        id: bilan._id.toString(),
+        version: bilan.version,
+        createdAt: bilan.createdAt,
+        archetype: bilan.conclusion?.archetype,
+        profileSummary: bilan.conclusion?.profileSummary,
+        keyStrengths: bilan.conclusion?.keyStrengths ?? [],
+        recommendedJobs: bilan.conclusion?.recommendedJobs ?? [],
+      })),
+      swipes: {
+        likes: swipes.like ?? 0,
+        dislikes: swipes.dislike ?? 0,
+        total: (swipes.like ?? 0) + (swipes.dislike ?? 0),
       },
     });
   } catch (error) {
@@ -954,8 +1123,13 @@ export const duplicateBilanVersionAdmin = async (
 
     if (sourceQuestions.length > 0) {
       await BilanQuestion.insertMany(
-        sourceQuestions.map(({ _id, createdAt, updatedAt, ...question }) => ({
-          ...question,
+        sourceQuestions.map((question) => ({
+          code: question.code,
+          domain: question.domain,
+          subdomain: question.subdomain,
+          question: question.question,
+          type: question.type,
+          isActive: question.isActive,
           version,
         }))
       );

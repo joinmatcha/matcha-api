@@ -757,11 +757,30 @@ export const swaggerDocs = {
  *                 example: StrongPassw0rd!
  *     responses:
  *       200:
- *         description: Connexion admin réussie
+ *         description: Connexion admin réussie. Pose un cookie httpOnly admin_token.
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *             description: Cookie httpOnly admin_token
  *       401:
  *         description: Identifiants invalides
  *       403:
  *         description: Accès admin requis
+ */
+`,
+
+  adminLogout: `
+/**
+ * @swagger
+ * /api/admin/auth/logout:
+ *   post:
+ *     summary: Déconnexion administrateur
+ *     tags: [Admin]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Cookie admin supprimé
  */
 `,
 

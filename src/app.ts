@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -11,7 +12,8 @@ import { registerRoutes } from '@/modules';
 const app = express();
 
 app.use(express.json());
-app.use(cors({ origin: env.CLIENT_URL }));
+app.use(cookieParser());
+app.use(cors({ origin: env.BACKOFFICE_URL, credentials: true }));
 app.use(helmet());
 
 // Swagger documentation

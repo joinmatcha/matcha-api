@@ -13,8 +13,10 @@ const envSchema = z.object({
   MONGODB_DB_TEST: z.string().default('matcha_test'),
 
   CLIENT_URL: z.string().default('*'),
+  BACKOFFICE_URL: z.string().default('http://localhost:3000'),
   API_URL: z.string().default('http://localhost:3000'),
   FRONTEND_URL: z.string().default('http://localhost:8081'),
+  ADMIN_COOKIE_NAME: z.string().default('admin_token'),
 
   APP_NAME: z.string().default('Matcha'),
   SMTP_HOST: z.string().optional(),
