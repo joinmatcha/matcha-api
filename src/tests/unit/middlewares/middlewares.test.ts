@@ -29,7 +29,7 @@ describe('Middlewares', () => {
       expect(next).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
-        message: 'Missing or invalid Authorization header',
+        message: 'Missing authentication token',
       });
     });
 

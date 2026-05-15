@@ -7,6 +7,7 @@ import {
   activateTemplateAdmin,
   addTemplateQuestionAdmin,
   adminLogin,
+  adminLogout,
   createBilanQuestionAdmin,
   createBilanVersionAdmin,
   createTemplateAdmin,
@@ -15,6 +16,8 @@ import {
   deleteTemplateQuestionAdmin,
   duplicateBilanVersionAdmin,
   duplicateTemplateAdmin,
+  getStatsAdmin,
+  getUserAdmin,
   listBilanQuestionsAdmin,
   listBilanVersionsAdmin,
   listTemplatesAdmin,
@@ -60,6 +63,7 @@ import {
 const router = Router();
 
 router.post('/auth/login', validate(adminLoginSchema), adminLogin);
+router.post('/auth/logout', adminLogout);
 
 router.use(requireAuth, requireAdmin);
 
@@ -68,12 +72,19 @@ router.get(
   validate(adminUserListQuerySchema, 'query'),
   listUsersAdmin
 );
+router.get(
+  '/users/:id',
+  validate(adminUserParamsSchema, 'params'),
+  getUserAdmin
+);
 router.patch(
   '/users/:id',
   validate(adminUserParamsSchema, 'params'),
   validate(adminUpdateUserSchema),
   updateUserAdmin
 );
+
+router.get('/stats', getStatsAdmin);
 
 router.get('/rome/status', getRomeStatusAdmin);
 router.post('/rome/sync', startRomeSyncAdmin);

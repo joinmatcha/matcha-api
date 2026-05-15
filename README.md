@@ -76,10 +76,12 @@ yarn down
 | `APP_NAME`                           | Nom de l'application                                   | `matcha-api`            | Non      |
 | `NODE_ENV`                           | Environnement (`development`, `test`, `production`)    | `development`           | Non      |
 | `CLIENT_URL`                         | URL du client (CORS)                                   | `*`                     | Non      |
+| `BACKOFFICE_URL`                     | URL du back-office admin (CORS avec credentials)       | `http://localhost:3000` | Non      |
 | `DAILY_SWIPE_LIMIT`                  | Nombre de swipes autorisés par utilisateur et par jour | `10`                    | Non      |
 | `API_URL`                            | URL publique de l'API                                  | `http://localhost:3000` | Non      |
 | `FRONTEND_URL`                       | URL du frontend (liens dans les emails)                | `http://localhost:8081` | Non      |
 | `JWT_SECRET`                         | Clé de signature des tokens JWT                        | -                       | Oui      |
+| `ADMIN_COOKIE_NAME`                  | Nom du cookie httpOnly admin                           | `admin_token`           | Non      |
 | `SMTP_HOST`                          | Serveur SMTP                                           | `smtp.gmail.com`        | Non      |
 | `SMTP_PORT`                          | Port SMTP                                              | `587`                   | Non      |
 | `SMTP_USER`                          | Adresse email d'envoi                                  | -                       | Non      |
@@ -372,9 +374,10 @@ src/
 
 Les routes du back-office sont exposées sous `/api/admin`.
 
-1. Se connecter : `POST /api/admin/auth/login` pour obtenir un JWT admin
-2. Utiliser le header `Authorization: Bearer <token>` sur les requêtes suivantes
-3. La documentation complète est disponible sur `/api-docs`
+1. Se connecter : `POST /api/admin/auth/login` pose un cookie httpOnly `admin_token`
+2. Appeler les routes admin avec les cookies inclus (`credentials: "include"`)
+3. Se déconnecter : `POST /api/admin/auth/logout` clear le cookie admin
+4. La documentation complète est disponible sur `/api-docs`
 
 Deux méthodes pour créer un premier admin :
 

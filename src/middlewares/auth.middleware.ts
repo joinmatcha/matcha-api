@@ -15,15 +15,14 @@ export const requireAuth = (
   next: NextFunction
 ): void => {
   const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
+    : req.cookies?.[env.ADMIN_COOKIE_NAME];
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    res
-      .status(401)
-      .json({ message: 'Missing or invalid Authorization header' });
+  if (!token) {
+    res.status(401).json({ message: 'Missing authentication token' });
     return;
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;

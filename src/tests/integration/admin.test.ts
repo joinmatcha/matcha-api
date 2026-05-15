@@ -4,10 +4,13 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 
 import app from '@/app';
+import { BilanCompetence } from '@/models/BilanCompetence';
 import { BilanQuestion } from '@/models/BilanQuestion';
 import { BilanVersion } from '@/models/BilanVersion';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
+import PersonalityTest from '@/models/PersonalityTest';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
+import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 
 const createAdmin = async () => {
@@ -25,6 +28,12 @@ const createAdmin = async () => {
   });
 
   return { admin, password };
+};
+
+const getAdminCookie = (res: request.Response): string[] => {
+  const cookies = res.headers['set-cookie'];
+  expect(cookies).toBeDefined();
+  return Array.isArray(cookies) ? cookies : [cookies as string];
 };
 
 const createRegularUserAndToken = async () => {
@@ -115,7 +124,7 @@ describe('Admin routes', () => {
       expect(res.status).toBe(403);
     });
 
-    it('should return a token for admins', async () => {
+    it('should set an httpOnly admin cookie for admins', async () => {
       const { admin, password } = await createAdmin();
 
       const res = await request(app).post('/api/admin/auth/login').send({
@@ -124,8 +133,22 @@ describe('Admin routes', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('token');
+      expect(res.body).not.toHaveProperty('token');
       expect(res.body.user).toHaveProperty('role', 'admin');
+      const cookie = getAdminCookie(res)[0];
+      expect(cookie).toContain('admin_token=');
+      expect(cookie).toContain('HttpOnly');
+      expect(cookie).toContain('SameSite=Lax');
+    });
+
+    it('should clear the admin cookie on logout', async () => {
+      const res = await request(app).post('/api/admin/auth/logout');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ message: 'Logged out' });
+      const cookie = getAdminCookie(res)[0];
+      expect(cookie).toContain('admin_token=;');
+      expect(cookie).toContain('Expires=Thu, 01 Jan 1970 00:00:00 GMT');
     });
   });
 
@@ -166,12 +189,188 @@ describe('Admin routes', () => {
 
       const res = await request(app)
         .get('/api/admin/users')
-        .set('Authorization', `Bearer ${loginRes.body.token}`);
+        .set('Cookie', getAdminCookie(loginRes));
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.items)).toBe(true);
       expect(res.body.items.length).toBeGreaterThanOrEqual(2);
       expect(res.body.items[0]).not.toHaveProperty('passwordHash');
+    });
+
+    it('should still accept an admin Bearer token', async () => {
+      const { admin } = await createAdmin();
+      const token = jwt.sign(
+        { id: admin._id, email: admin.email, role: admin.role },
+        process.env.JWT_SECRET || 'test-secret'
+      );
+
+      const res = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.items)).toBe(true);
+    });
+
+    it('should expose dashboard stats for the backoffice', async () => {
+      const { admin, password } = await createAdmin();
+      const user = await User.create({
+        email: `stats-user-${Date.now()}@example.com`,
+        passwordHash: await bcrypt.hash('AnotherPassw0rd!', 10),
+        firstName: 'Stats',
+        lastName: 'User',
+        consentAccepted: true,
+        isEmailVerified: true,
+        subscription: 'premium',
+      });
+
+      await PersonalityVersion.create({
+        title: 'Stats personality',
+        version: 'stats-1',
+        status: 'draft',
+      });
+      await BilanVersion.create({
+        version: 42,
+        title: 'Stats bilan',
+        status: 'draft',
+      });
+
+      await PersonalityTest.create({
+        userId: user._id,
+        templateId: new mongoose.Types.ObjectId(),
+        templateVersion: 'stats-1',
+        answers: [],
+        type: 'ENTP',
+        result: 'Innovateur',
+      });
+
+      await BilanCompetence.create({
+        user: user._id,
+        version: 42,
+        rawAnswers: [],
+        scores: {},
+        investigation: {
+          competence: { strengths: [], acquired: [], toImprove: [] },
+          softSkills: { strengths: [], acquired: [], toImprove: [] },
+          topValues: [],
+          topWorkConditions: [],
+          interestsProfile: [],
+        },
+        conclusion: {
+          archetype: {
+            id: 'explorer',
+            title: 'Explorateur',
+            subtitle: 'Curieux',
+            description: 'Profil exploratoire',
+          },
+          profileSummary: 'Résumé',
+          keyStrengths: [],
+          improvementAxes: [],
+          recommendedEnvironments: [],
+          recommendedJobs: [],
+          actionPlan: [],
+        },
+      });
+
+      const loginRes = await request(app).post('/api/admin/auth/login').send({
+        email: admin.email,
+        password,
+      });
+
+      const res = await request(app)
+        .get('/api/admin/stats')
+        .set('Cookie', getAdminCookie(loginRes));
+
+      expect(res.status).toBe(200);
+      expect(res.body.users.total).toBeGreaterThanOrEqual(2);
+      expect(res.body.users.premium).toBeGreaterThanOrEqual(1);
+      expect(res.body.engagement).toMatchObject({
+        personalityTests: 1,
+        bilanResults: 1,
+      });
+      expect(res.body.content).toMatchObject({
+        personalityVersions: 1,
+        bilanVersions: 1,
+      });
+    });
+
+    it('should expose a detailed user backoffice profile', async () => {
+      const { admin, password } = await createAdmin();
+      const user = await User.create({
+        email: `detail-user-${Date.now()}@example.com`,
+        passwordHash: await bcrypt.hash('AnotherPassw0rd!', 10),
+        firstName: 'Detail',
+        lastName: 'User',
+        consentAccepted: true,
+        isEmailVerified: true,
+        jobTypes: ['tech'],
+      });
+
+      await PersonalityTest.create({
+        userId: user._id,
+        templateId: new mongoose.Types.ObjectId(),
+        templateVersion: 'detail-1',
+        answers: [],
+        type: 'INTJ',
+        result: 'Architecte',
+      });
+
+      await BilanCompetence.create({
+        user: user._id,
+        version: 1,
+        rawAnswers: [],
+        scores: {},
+        investigation: {
+          competence: { strengths: [], acquired: [], toImprove: [] },
+          softSkills: { strengths: [], acquired: [], toImprove: [] },
+          topValues: [],
+          topWorkConditions: [],
+          interestsProfile: [],
+        },
+        conclusion: {
+          archetype: {
+            id: 'builder',
+            title: 'Bâtisseur',
+            subtitle: 'Structuré',
+            description: 'Profil structuré',
+          },
+          profileSummary: 'Profil detail',
+          keyStrengths: ['analyse'],
+          improvementAxes: [],
+          recommendedEnvironments: [],
+          recommendedJobs: [],
+          actionPlan: [],
+        },
+      });
+
+      await Swipe.create({
+        userId: user._id,
+        jobId: new mongoose.Types.ObjectId(),
+        action: 'like',
+      });
+
+      const loginRes = await request(app).post('/api/admin/auth/login').send({
+        email: admin.email,
+        password,
+      });
+
+      const res = await request(app)
+        .get(`/api/admin/users/${user._id}`)
+        .set('Cookie', getAdminCookie(loginRes));
+
+      expect(res.status).toBe(200);
+      expect(res.body.user).toMatchObject({
+        email: user.email,
+        firstName: 'Detail',
+      });
+      expect(res.body.personalityTests).toHaveLength(1);
+      expect(res.body.bilans).toHaveLength(1);
+      expect(res.body.swipes).toMatchObject({
+        likes: 1,
+        dislikes: 0,
+        total: 1,
+      });
+      expect(res.body.user).not.toHaveProperty('passwordHash');
     });
 
     it('should filter and paginate users for admin listings', async () => {
@@ -205,7 +404,7 @@ describe('Admin routes', () => {
 
       const res = await request(app)
         .get('/api/admin/users?role=user&limit=1&page=1&q=Member')
-        .set('Authorization', `Bearer ${loginRes.body.token}`);
+        .set('Cookie', getAdminCookie(loginRes));
 
       expect(res.status).toBe(200);
       expect(res.body.items).toHaveLength(1);
@@ -226,7 +425,7 @@ describe('Admin routes', () => {
 
       const res = await request(app)
         .patch(`/api/admin/users/${admin._id}`)
-        .set('Authorization', `Bearer ${loginRes.body.token}`)
+        .set('Cookie', getAdminCookie(loginRes))
         .send({});
 
       expect(res.status).toBe(400);
@@ -251,7 +450,7 @@ describe('Admin routes', () => {
 
       const res = await request(app)
         .patch(`/api/admin/users/${admin._id}`)
-        .set('Authorization', `Bearer ${loginRes.body.token}`)
+        .set('Cookie', getAdminCookie(loginRes))
         .send({
           email: otherUser.email,
         });
@@ -265,7 +464,7 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const activePersonalityVersion = await PersonalityVersion.create({
         title: 'Version Active',
@@ -345,17 +544,17 @@ describe('Admin routes', () => {
         await Promise.all([
           request(app)
             .get('/api/admin/personality-versions?isActive=true&q=Active')
-            .set('Authorization', `Bearer ${token}`),
+            .set('Cookie', cookie),
           request(app)
             .get(
               '/api/admin/bilan-versions?status=active&isActive=true&q=visible'
             )
-            .set('Authorization', `Bearer ${token}`),
+            .set('Cookie', cookie),
           request(app)
             .get(
               '/api/admin/bilan-questions?version=1&isActive=true&domain=interest&q=interet'
             )
-            .set('Authorization', `Bearer ${token}`),
+            .set('Cookie', cookie),
         ]);
 
       expect(personalityRes.status).toBe(200);
@@ -377,11 +576,11 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const templateRes = await request(app)
         .post('/api/admin/personality-versions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           title: 'Template BO',
           version: '2.0',
@@ -399,7 +598,7 @@ describe('Admin routes', () => {
 
       await request(app)
         .post('/api/admin/bilan-versions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           version: 1,
           title: 'Bilan V1',
@@ -408,7 +607,7 @@ describe('Admin routes', () => {
 
       const bilanRes = await request(app)
         .post('/api/admin/bilan-questions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           code: 'ADM1',
           domain: 'interest',
@@ -421,10 +620,10 @@ describe('Admin routes', () => {
 
       const listTemplateRes = await request(app)
         .get('/api/admin/personality-versions')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
       const listBilanRes = await request(app)
         .get('/api/admin/bilan-questions')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(listTemplateRes.status).toBe(200);
       expect(listTemplateRes.body.items).toHaveLength(1);
@@ -442,7 +641,7 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const initialTemplate = await PersonalityVersion.create({
         title: 'Template V1',
@@ -467,7 +666,7 @@ describe('Admin routes', () => {
         .post(
           `/api/admin/personality-versions/${initialTemplate._id}/duplicate`
         )
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           version: '2.0',
           title: 'Template V2',
@@ -483,7 +682,7 @@ describe('Admin routes', () => {
         .post(
           `/api/admin/personality-versions/${duplicatedTemplateId}/questions`
         )
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           id: 'Q2',
           text: 'Nouvelle question V2',
@@ -498,7 +697,7 @@ describe('Admin routes', () => {
         .patch(
           `/api/admin/personality-versions/${duplicatedTemplateId}/questions/Q2`
         )
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           text: 'Question V2 mise a jour',
         });
@@ -517,7 +716,7 @@ describe('Admin routes', () => {
         .delete(
           `/api/admin/personality-versions/${duplicatedTemplateId}/questions/Q1`
         )
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(deleteQuestionRes.status).toBe(200);
       expect(deleteQuestionRes.body.questions).toHaveLength(1);
@@ -527,7 +726,7 @@ describe('Admin routes', () => {
         .post(
           `/api/admin/personality-versions/${duplicatedTemplateId}/activate`
         )
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(activateRes.status).toBe(200);
       expect(activateRes.body).toHaveProperty('isActive', true);
@@ -560,7 +759,7 @@ describe('Admin routes', () => {
         .post(
           `/api/admin/personality-versions/${duplicatedTemplateId}/deactivate`
         )
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(deactivateTemplateRes.status).toBe(200);
       expect(deactivateTemplateRes.body).toHaveProperty('isActive', false);
@@ -572,7 +771,7 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const template = await PersonalityVersion.create({
         title: 'Template source',
@@ -595,7 +794,7 @@ describe('Admin routes', () => {
 
       const duplicateVersionRes = await request(app)
         .post(`/api/admin/personality-versions/${template._id}/duplicate`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           version: '1.0',
         });
@@ -604,7 +803,7 @@ describe('Admin routes', () => {
 
       const duplicateQuestionIdRes = await request(app)
         .post(`/api/admin/personality-versions/${template._id}/questions`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           id: 'Q1',
           text: 'Question en doublon',
@@ -625,7 +824,7 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const version = await PersonalityVersion.create({
         title: 'Version cible',
@@ -647,7 +846,7 @@ describe('Admin routes', () => {
 
       const emptyUpdateRes = await request(app)
         .patch(`/api/admin/personality-versions/${version._id}`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({});
 
       expect(emptyUpdateRes.status).toBe(400);
@@ -655,7 +854,7 @@ describe('Admin routes', () => {
 
       const emptyQuestionUpdateRes = await request(app)
         .patch(`/api/admin/personality-versions/${version._id}/questions/Q1`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({});
 
       expect(emptyQuestionUpdateRes.status).toBe(400);
@@ -672,23 +871,23 @@ describe('Admin routes', () => {
       ] = await Promise.all([
         request(app)
           .patch(`/api/admin/personality-versions/${missingVersionId}`)
-          .set('Authorization', `Bearer ${token}`)
+          .set('Cookie', cookie)
           .send({ title: 'Introuvable' }),
         request(app)
           .post(`/api/admin/personality-versions/${missingVersionId}/duplicate`)
-          .set('Authorization', `Bearer ${token}`)
+          .set('Cookie', cookie)
           .send({ version: '2.0' }),
         request(app)
           .post(`/api/admin/personality-versions/${missingVersionId}/activate`)
-          .set('Authorization', `Bearer ${token}`),
+          .set('Cookie', cookie),
         request(app)
           .post(
             `/api/admin/personality-versions/${missingVersionId}/deactivate`
           )
-          .set('Authorization', `Bearer ${token}`),
+          .set('Cookie', cookie),
         request(app)
           .post(`/api/admin/personality-versions/${missingVersionId}/questions`)
-          .set('Authorization', `Bearer ${token}`)
+          .set('Cookie', cookie)
           .send({
             id: 'QX',
             text: 'Question',
@@ -707,7 +906,7 @@ describe('Admin routes', () => {
         .patch(
           `/api/admin/personality-versions/${version._id}/questions/UNKNOWN`
         )
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({ text: 'Maj' });
 
       expect(missingQuestionUpdateRes.status).toBe(404);
@@ -720,7 +919,7 @@ describe('Admin routes', () => {
         .delete(
           `/api/admin/personality-versions/${version._id}/questions/UNKNOWN`
         )
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(missingQuestionDeleteRes.status).toBe(404);
       expect(missingQuestionDeleteRes.body).toHaveProperty(
@@ -735,11 +934,11 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       await request(app)
         .post('/api/admin/bilan-versions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           version: 1,
           title: 'Bilan V1',
@@ -748,7 +947,7 @@ describe('Admin routes', () => {
 
       await request(app)
         .post('/api/admin/bilan-questions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           code: 'ADM1',
           domain: 'interest',
@@ -759,7 +958,7 @@ describe('Admin routes', () => {
 
       const duplicateRes = await request(app)
         .post('/api/admin/bilan-questions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           code: 'ADM1',
           domain: 'interest',
@@ -781,11 +980,11 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const createVersionRes = await request(app)
         .post('/api/admin/bilan-versions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           version: 1,
           title: 'Bilan V1',
@@ -798,7 +997,7 @@ describe('Admin routes', () => {
 
       const createQuestionV1Res = await request(app)
         .post('/api/admin/bilan-questions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           code: 'BV1Q1',
           domain: 'interest',
@@ -811,7 +1010,7 @@ describe('Admin routes', () => {
 
       const duplicateVersionRes = await request(app)
         .post('/api/admin/bilan-versions/1/duplicate')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           version: 2,
           title: 'Bilan V2',
@@ -828,7 +1027,7 @@ describe('Admin routes', () => {
 
       const activateVersionRes = await request(app)
         .post('/api/admin/bilan-versions/2/activate')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(activateVersionRes.status).toBe(200);
       expect(activateVersionRes.body).toHaveProperty('isActive', true);
@@ -859,7 +1058,7 @@ describe('Admin routes', () => {
 
       const deactivateVersionRes = await request(app)
         .post('/api/admin/bilan-versions/2/deactivate')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(deactivateVersionRes.status).toBe(200);
       expect(deactivateVersionRes.body).toHaveProperty('isActive', false);
@@ -872,11 +1071,11 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       const createQuestionRes = await request(app)
         .post('/api/admin/bilan-questions')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({
           code: 'NO_VERSION',
           domain: 'interest',
@@ -900,7 +1099,7 @@ describe('Admin routes', () => {
 
       const activateRes = await request(app)
         .post('/api/admin/bilan-versions/3/activate')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookie);
 
       expect(activateRes.status).toBe(400);
       expect(activateRes.body).toHaveProperty(
@@ -915,7 +1114,7 @@ describe('Admin routes', () => {
         email: admin.email,
         password,
       });
-      const token = loginRes.body.token;
+      const cookie = getAdminCookie(loginRes);
 
       await BilanVersion.create({
         version: 1,
@@ -935,7 +1134,7 @@ describe('Admin routes', () => {
 
       const emptyVersionUpdateRes = await request(app)
         .patch('/api/admin/bilan-versions/1')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({});
 
       expect(emptyVersionUpdateRes.status).toBe(400);
@@ -943,7 +1142,7 @@ describe('Admin routes', () => {
 
       const emptyQuestionUpdateRes = await request(app)
         .patch(`/api/admin/bilan-questions/${question._id}`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({});
 
       expect(emptyQuestionUpdateRes.status).toBe(400);
@@ -951,7 +1150,7 @@ describe('Admin routes', () => {
 
       const invalidQuestionIdRes = await request(app)
         .patch('/api/admin/bilan-questions/not-an-id')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({ question: 'Maj' });
 
       expect(invalidQuestionIdRes.status).toBe(400);
@@ -964,18 +1163,18 @@ describe('Admin routes', () => {
       ] = await Promise.all([
         request(app)
           .patch('/api/admin/bilan-versions/99')
-          .set('Authorization', `Bearer ${token}`)
+          .set('Cookie', cookie)
           .send({ title: 'Introuvable' }),
         request(app)
           .post('/api/admin/bilan-versions/99/duplicate')
-          .set('Authorization', `Bearer ${token}`)
+          .set('Cookie', cookie)
           .send({ version: 100 }),
         request(app)
           .post('/api/admin/bilan-versions/99/activate')
-          .set('Authorization', `Bearer ${token}`),
+          .set('Cookie', cookie),
         request(app)
           .post('/api/admin/bilan-versions/99/deactivate')
-          .set('Authorization', `Bearer ${token}`),
+          .set('Cookie', cookie),
       ]);
 
       expect(missingVersionUpdateRes.status).toBe(404);
@@ -985,7 +1184,7 @@ describe('Admin routes', () => {
 
       const duplicateVersionRes = await request(app)
         .post('/api/admin/bilan-versions/1/duplicate')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({ version: 1 });
 
       expect(duplicateVersionRes.status).toBe(409);
@@ -996,7 +1195,7 @@ describe('Admin routes', () => {
 
       const unknownTargetVersionRes = await request(app)
         .patch(`/api/admin/bilan-questions/${question._id}`)
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({ version: 88 });
 
       expect(unknownTargetVersionRes.status).toBe(400);
@@ -1009,7 +1208,7 @@ describe('Admin routes', () => {
         .patch(
           `/api/admin/bilan-questions/${new mongoose.Types.ObjectId().toString()}`
         )
-        .set('Authorization', `Bearer ${token}`)
+        .set('Cookie', cookie)
         .send({ question: 'Introuvable' });
 
       expect(missingQuestionRes.status).toBe(404);
