@@ -1,4 +1,4 @@
-import nodemailer, { Transporter } from 'nodemailer';
+import nodemailer, { SentMessageInfo, Transporter } from 'nodemailer';
 
 import { env } from '@/config/env';
 
@@ -7,6 +7,29 @@ const APP_NAME = env.APP_NAME;
 const SMTP_USER = env.SMTP_USER;
 const API_URL = env.API_URL;
 const FRONTEND_URL = env.FRONTEND_URL;
+
+const brand = {
+  green: '#2A7F68',
+  greenDark: '#1F6653',
+  greenSoft: '#E8F2EE',
+  ink: '#111827',
+  text: '#374151',
+  muted: '#6B7280',
+  border: '#E5E7EB',
+  background: '#F7F3EE',
+  surface: '#FFFFFF',
+};
+
+interface EmailTemplateOptions {
+  preheader: string;
+  eyebrow: string;
+  title: string;
+  intro: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  secondaryText?: string;
+  warningText?: string;
+}
 
 const getTransporter = async (): Promise<Transporter> => {
   if (isProduction) {
@@ -20,6 +43,7 @@ const getTransporter = async (): Promise<Transporter> => {
       },
     });
   }
+
   const testAccount = await nodemailer.createTestAccount();
   return nodemailer.createTransport({
     host: testAccount.smtp.host,
@@ -29,159 +53,307 @@ const getTransporter = async (): Promise<Transporter> => {
   });
 };
 
-const logPreviewUrl = (info: any): void => {
+const logPreviewUrl = (info: SentMessageInfo): void => {
   if (!isProduction) {
     console.log('📨 Preview URL:', nodemailer.getTestMessageUrl(info));
   }
 };
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const buildPlainText = ({
+  title,
+  intro,
+  ctaLabel,
+  ctaUrl,
+  secondaryText,
+  warningText,
+}: EmailTemplateOptions) =>
+  [
+    `${APP_NAME} - ${title}`,
+    '',
+    intro,
+    '',
+    `${ctaLabel}:`,
+    ctaUrl,
+    secondaryText ? ['', secondaryText] : null,
+    warningText ? ['', warningText] : null,
+    '',
+    `L'équipe ${APP_NAME}`,
+  ]
+    .flat()
+    .filter((line): line is string => typeof line === 'string')
+    .join('\n');
+
+const renderEmailTemplate = (options: EmailTemplateOptions) => {
+  const {
+    preheader,
+    eyebrow,
+    title,
+    intro,
+    ctaLabel,
+    ctaUrl,
+    secondaryText,
+    warningText,
+  } = options;
+
+  const safeCtaUrl = escapeHtml(ctaUrl);
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>${escapeHtml(title)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:${brand.background};font-family:Arial,Helvetica,sans-serif;color:${brand.text};">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      ${escapeHtml(preheader)}
+    </div>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${brand.background};padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;">
+            <tr>
+              <td style="padding:0 0 14px 0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="font-size:24px;line-height:30px;font-weight:800;color:${brand.ink};letter-spacing:-0.2px;">
+                      ${escapeHtml(APP_NAME)}
+                    </td>
+                    <td align="right" style="font-size:12px;line-height:18px;color:${brand.muted};">
+                      Reconversion professionnelle
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:${brand.surface};border:1px solid ${brand.border};border-radius:18px;overflow:hidden;box-shadow:0 16px 40px rgba(17,24,39,0.08);">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="background:${brand.green};padding:28px 32px;">
+                      <div style="font-size:12px;line-height:18px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#DDF2EA;margin-bottom:8px;">
+                        ${escapeHtml(eyebrow)}
+                      </div>
+                      <h1 style="margin:0;font-size:30px;line-height:36px;color:#FFFFFF;font-weight:800;letter-spacing:-0.4px;">
+                        ${escapeHtml(title)}
+                      </h1>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:32px;">
+                      <p style="margin:0 0 22px 0;font-size:16px;line-height:26px;color:${brand.text};">
+                        ${escapeHtml(intro)}
+                      </p>
+
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 28px 0;">
+                        <tr>
+                          <td style="border-radius:12px;background:${brand.green};">
+                            <a href="${safeCtaUrl}" target="_blank" style="display:inline-block;padding:15px 22px;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:12px;">
+                              ${escapeHtml(ctaLabel)}
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      ${
+                        secondaryText
+                          ? `<p style="margin:0 0 18px 0;font-size:14px;line-height:22px;color:${brand.muted};">${escapeHtml(secondaryText)}</p>`
+                          : ''
+                      }
+
+                      ${
+                        warningText
+                          ? `<div style="margin:22px 0;padding:14px 16px;border-radius:12px;background:${brand.greenSoft};font-size:14px;line-height:22px;color:${brand.greenDark};">${escapeHtml(warningText)}</div>`
+                          : ''
+                      }
+
+                      <div style="margin-top:28px;padding-top:22px;border-top:1px solid ${brand.border};">
+                        <p style="margin:0 0 8px 0;font-size:12px;line-height:18px;color:${brand.muted};">
+                          Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :
+                        </p>
+                        <a href="${safeCtaUrl}" target="_blank" style="font-size:12px;line-height:18px;color:${brand.greenDark};word-break:break-all;text-decoration:underline;">
+                          ${safeCtaUrl}
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:22px 12px 0 12px;font-size:12px;line-height:18px;color:${brand.muted};">
+                © ${new Date().getFullYear()} ${escapeHtml(APP_NAME)}. Cet email a été envoyé automatiquement.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+};
+
+async function sendTemplatedEmail({
+  to,
+  subject,
+  template,
+}: {
+  to: string;
+  subject: string;
+  template: EmailTemplateOptions;
+}) {
+  const transporter = await getTransporter();
+  const info = await transporter.sendMail({
+    from: `"${APP_NAME}" <${SMTP_USER}>`,
+    to,
+    subject,
+    html: renderEmailTemplate(template),
+    text: buildPlainText(template),
+  });
+
+  logPreviewUrl(info);
+}
+
 export const sendValidationEmail = async (
   to: string,
   token: string
 ): Promise<void> => {
-  const transporter = await getTransporter();
   const link = `${API_URL}/api/users/verify-email?token=${token}`;
-  const info = await transporter.sendMail({
-    from: `"${APP_NAME}" <${SMTP_USER}>`,
+
+  await sendTemplatedEmail({
     to,
-    subject: 'Verify your email address',
-    html: `<p>Welcome to ${APP_NAME}! Please verify your email by clicking the link below:</p>
-           <a href="${link}">${link}</a>`,
+    subject: 'Confirme ton adresse email',
+    template: {
+      preheader: 'Active ton compte Matcha en confirmant ton adresse email.',
+      eyebrow: 'Bienvenue sur Matcha',
+      title: 'Confirme ton adresse email',
+      intro:
+        'Merci pour ton inscription. Il ne reste plus qu’à confirmer ton adresse email pour sécuriser ton compte et accéder à ton espace Matcha.',
+      ctaLabel: 'Confirmer mon email',
+      ctaUrl: link,
+      secondaryText: 'Ce lien est valable pendant 1 heure.',
+      warningText:
+        'Si tu n’es pas à l’origine de cette inscription, tu peux ignorer cet email.',
+    },
   });
-  logPreviewUrl(info);
 };
 
 export const sendResetPasswordEmail = async (
   to: string,
   token: string
 ): Promise<void> => {
-  const transporter = await getTransporter();
   const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
 
-  const info = await transporter.sendMail({
-    from: `"${APP_NAME}" <${SMTP_USER}>`,
+  await sendTemplatedEmail({
     to,
-    subject: 'Réinitialisation de votre mot de passe',
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0;">Matcha</h1>
-          </div>
-          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-            <h2 style="color: #667eea; margin-top: 0;">Réinitialisation de mot de passe</h2>
-            <p>Bonjour,</p>
-            <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetLink}" 
-                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        color: white; 
-                        padding: 15px 30px; 
-                        text-decoration: none; 
-                        border-radius: 5px; 
-                        display: inline-block;
-                        font-weight: bold;">
-                Réinitialiser mon mot de passe
-              </a>
-            </div>
-            <p style="color: #666; font-size: 14px;">
-              Ce lien est valide pendant 15 minutes.
-            </p>
-            <p style="color: #666; font-size: 14px;">
-              Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.
-            </p>
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-            <p style="color: #999; font-size: 12px; text-align: center;">
-              Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br>
-              <a href="${resetLink}" style="color: #667eea;">${resetLink}</a>
-            </p>
-          </div>
-        </body>
-      </html>
-    `,
-    text: `
-Réinitialisation de mot de passe
-
-Vous avez demandé à réinitialiser votre mot de passe.
-
-Cliquez sur ce lien pour définir un nouveau mot de passe (valide 15 minutes) :
-${resetLink}
-
-Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.
-    `,
+    subject: 'Réinitialise ton mot de passe',
+    template: {
+      preheader: 'Choisis un nouveau mot de passe pour ton compte Matcha.',
+      eyebrow: 'Sécurité du compte',
+      title: 'Réinitialise ton mot de passe',
+      intro:
+        'Tu as demandé à réinitialiser ton mot de passe. Clique sur le bouton ci-dessous pour choisir un nouveau mot de passe.',
+      ctaLabel: 'Choisir un nouveau mot de passe',
+      ctaUrl: resetLink,
+      secondaryText: 'Ce lien est valable pendant 15 minutes.',
+      warningText:
+        'Si tu n’as pas demandé cette réinitialisation, aucune action n’est nécessaire.',
+    },
   });
-
-  logPreviewUrl(info);
 };
 
 export const sendEmailChangeVerification = async (
   to: string,
   token: string
 ): Promise<void> => {
-  const transporter = await getTransporter();
-
   const link = `${API_URL}/api/users/verify-email?token=${token}`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Matcha</h1>
-        </div>
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #2575fc; margin-top: 0;">Confirme ton changement d'adresse email</h2>
+  await sendTemplatedEmail({
+    to,
+    subject: 'Confirme ton nouvel email',
+    template: {
+      preheader: 'Valide la nouvelle adresse email associée à ton compte.',
+      eyebrow: 'Changement d’email',
+      title: 'Confirme ton nouvel email',
+      intro:
+        'Tu as demandé à modifier l’adresse email associée à ton compte Matcha. Confirme cette nouvelle adresse pour finaliser le changement.',
+      ctaLabel: 'Confirmer mon nouvel email',
+      ctaUrl: link,
+      secondaryText: 'Ce lien est valable pendant 15 minutes.',
+      warningText:
+        'Si tu n’es pas à l’origine de cette demande, tu peux ignorer cet email.',
+    },
+  });
+};
 
-          <p>Tu as demandé à modifier ton adresse email associée à ton compte Matcha.</p>
+export const sendSupportContactEmail = async ({
+  fromEmail,
+  fromName,
+  requestId,
+  subject,
+  category,
+  message,
+}: {
+  fromEmail: string;
+  fromName: string;
+  requestId?: string;
+  subject: string;
+  category: string;
+  message: string;
+}): Promise<void> => {
+  const transporter = await getTransporter();
+  const supportRecipient = SMTP_USER;
+  const safeSubject = `[Support ${APP_NAME}] ${subject}`;
 
-          <p>Clique sur le bouton ci-dessous pour confirmer cette modification :</p>
+  const html = renderEmailTemplate({
+    preheader: `Nouvelle demande support de ${fromName}.`,
+    eyebrow: 'Demande support',
+    title: subject,
+    intro: `${fromName} (${fromEmail}) a envoyé une demande depuis l’application Matcha.`,
+    ctaLabel: 'Répondre par email',
+    ctaUrl: `mailto:${fromEmail}`,
+    secondaryText: [
+      requestId ? `Référence : ${requestId}` : null,
+      `Catégorie : ${category}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    warningText: message,
+  });
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${link}"
-               style="background: #2575fc;
-                      color: white;
-                      padding: 14px 24px;
-                      text-decoration: none;
-                      border-radius: 5px;
-                      display: inline-block;
-                      font-weight: bold;">
-              Confirmer mon nouvel email
-            </a>
-          </div>
-
-          <p style="color: #666; font-size: 14px;">
-            Ce lien est valable pendant 15 minutes pour des raisons de sécurité.
-          </p>
-
-          <p style="color: #666; font-size: 14px;">
-            Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email en toute sécurité.
-          </p>
-
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />
-
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            Si le bouton ne fonctionne pas, copie et colle ce lien dans ton navigateur :<br />
-            <a href="${link}" style="color: #2575fc;">${link}</a>
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
+  const text = [
+    safeSubject,
+    '',
+    `De : ${fromName} <${fromEmail}>`,
+    requestId ? `Référence : ${requestId}` : null,
+    `Catégorie : ${category}`,
+    '',
+    message,
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n');
 
   const info = await transporter.sendMail({
     from: `"${APP_NAME}" <${SMTP_USER}>`,
-    to,
-    subject: 'Confirme ton changement d’adresse email',
+    to: supportRecipient,
+    replyTo: fromEmail,
+    subject: safeSubject,
     html,
+    text,
   });
 
   logPreviewUrl(info);

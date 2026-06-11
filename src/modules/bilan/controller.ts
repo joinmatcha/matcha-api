@@ -117,6 +117,7 @@ export const getMyBilan = async (
         topValues: bilan.investigation.topValues,
         topWorkConditions: bilan.investigation.topWorkConditions,
         interestsProfile: bilan.investigation.interestsProfile,
+        feasibilityProfile: bilan.investigation.feasibilityProfile ?? [],
       },
     };
 

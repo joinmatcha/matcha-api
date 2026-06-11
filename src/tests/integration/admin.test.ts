@@ -10,6 +10,7 @@ import { BilanVersion } from '@/models/BilanVersion';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import PersonalityTest from '@/models/PersonalityTest';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
+import { SupportRequest } from '@/models/SupportRequest';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 
@@ -210,6 +211,64 @@ describe('Admin routes', () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.items)).toBe(true);
+    });
+
+    it('should list and update support requests for admins', async () => {
+      const { admin, password } = await createAdmin();
+      const user = await User.create({
+        email: `support-user-${Date.now()}@example.com`,
+        passwordHash: await bcrypt.hash('AnotherPassw0rd!', 10),
+        firstName: 'Support',
+        lastName: 'Member',
+        consentAccepted: true,
+        isEmailVerified: true,
+      });
+
+      const supportRequest = await SupportRequest.create({
+        user: user._id,
+        email: user.email,
+        name: 'Support Member',
+        category: 'bug',
+        subject: 'Bug application mobile',
+        message:
+          'Bonjour, je rencontre un problème reproductible dans l’application mobile.',
+      });
+
+      const loginRes = await request(app).post('/api/admin/auth/login').send({
+        email: admin.email,
+        password,
+      });
+      const cookie = getAdminCookie(loginRes);
+
+      const listRes = await request(app)
+        .get('/api/admin/support-requests?status=open&category=bug&q=mobile')
+        .set('Cookie', cookie);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.items).toHaveLength(1);
+      expect(listRes.body.items[0]).toMatchObject({
+        _id: supportRequest._id.toString(),
+        email: user.email,
+        status: 'open',
+        category: 'bug',
+      });
+
+      const updateRes = await request(app)
+        .patch(`/api/admin/support-requests/${supportRequest._id}`)
+        .set('Cookie', cookie)
+        .send({
+          status: 'in_progress',
+          adminNotes: 'Prise en charge depuis le BO.',
+        });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body).toMatchObject({
+        _id: supportRequest._id.toString(),
+        status: 'in_progress',
+        adminNotes: 'Prise en charge depuis le BO.',
+      });
+      expect(updateRes.body.handledBy).toBe(admin._id.toString());
+      expect(updateRes.body.handledAt).toBeTruthy();
     });
 
     it('should expose dashboard stats for the backoffice', async () => {
@@ -596,24 +655,29 @@ describe('Admin routes', () => {
 
       expect(templateRes.status).toBe(201);
 
-      await request(app)
+      const bilanVersion = 7;
+      const questionCode = `ADM-${Date.now()}`;
+
+      const bilanVersionRes = await request(app)
         .post('/api/admin/bilan-versions')
         .set('Cookie', cookie)
         .send({
-          version: 1,
-          title: 'Bilan V1',
+          version: bilanVersion,
+          title: 'Bilan test listable',
           isActive: true,
         });
+
+      expect(bilanVersionRes.status).toBe(201);
 
       const bilanRes = await request(app)
         .post('/api/admin/bilan-questions')
         .set('Cookie', cookie)
         .send({
-          code: 'ADM1',
+          code: questionCode,
           domain: 'interest',
           question: 'Tu aimes analyser ?',
           type: 'likert_1_5',
-          version: 1,
+          version: bilanVersion,
         });
 
       expect(bilanRes.status).toBe(201);

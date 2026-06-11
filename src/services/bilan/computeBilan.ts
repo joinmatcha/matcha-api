@@ -23,9 +23,10 @@ export const computeAndStoreBilan = async (
   const competence = classifyCompetences(scores.competence);
   const softSkills = classifyCompetences(scores.soft_skill);
 
-  const topValues = topKeys(scores.value);
-  const topWorkConditions = topKeys(scores.work_condition);
-  const interestsProfile = topKeys(scores.interest, 2);
+  const topValues = topKeys(scores.value, 3, 3.5);
+  const topWorkConditions = topKeys(scores.work_condition, 3, 3.5);
+  const interestsProfile = topKeys(scores.interest, 2, 3.5);
+  const feasibilityProfile = topKeys(scores.feasibility, 3, 3.5);
 
   const { conclusion, mappedTopValues, mappedTopWorkConditions } =
     await generateConclusion({
@@ -36,6 +37,7 @@ export const computeAndStoreBilan = async (
       topValues,
       topWorkConditions,
       interestsProfile,
+      feasibilityProfile,
     });
 
   return BilanCompetence.create({
@@ -49,6 +51,7 @@ export const computeAndStoreBilan = async (
       topValues: mappedTopValues,
       topWorkConditions: mappedTopWorkConditions,
       interestsProfile,
+      feasibilityProfile,
     },
     conclusion,
   });

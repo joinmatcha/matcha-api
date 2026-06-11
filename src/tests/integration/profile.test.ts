@@ -2,10 +2,17 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import app from '@/app';
+import { BilanAnswerSet } from '@/models/BilanAnswerSet';
+import { BilanCompetence } from '@/models/BilanCompetence';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import PersonalityTest from '@/models/PersonalityTest';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
+import { RomeMetier } from '@/models/RomeMetier';
+import { SupportRequest } from '@/models/SupportRequest';
+import { Swipe } from '@/models/Swipe';
+import { SwipeQuota } from '@/models/SwipeQuota';
 import User from '@/models/User';
+import { sendSupportContactEmail } from '@/services/notifications/email';
 
 const BASE_URL = '/api/profile';
 
@@ -35,7 +42,7 @@ const createUserAndGetToken = async () => {
     process.env.JWT_SECRET || 'test-secret'
   );
 
-  return { token, password };
+  return { token, password, user };
 };
 
 describe('GET /api/profile', () => {
@@ -221,6 +228,67 @@ describe('DELETE /api/profile/account', () => {
 
     const userBefore = await User.findOne({});
     expect(userBefore).not.toBeNull();
+    const userId = userBefore!._id;
+
+    const job = await RomeMetier.create({
+      code: `M${Date.now()}`,
+      label: 'Développeur web',
+      normalizedLabel: 'developpeur web',
+      isActive: true,
+      riasec: { codes: ['I'] },
+    });
+
+    await Promise.all([
+      Swipe.create({
+        userId,
+        jobId: job._id,
+        action: 'like',
+        dayKey: '2026-06-05',
+      }),
+      SwipeQuota.create({
+        userId,
+        dayKey: '2026-06-05',
+        count: 1,
+      }),
+      BilanAnswerSet.create({
+        user: userId,
+        version: 1,
+        answers: [{ questionCode: 'C1', valueNumber: 4 }],
+      }),
+      BilanCompetence.create({
+        user: userId,
+        version: 1,
+        rawAnswers: [{ questionCode: 'C1', valueNumber: 4 }],
+        scores: {
+          competence: {},
+          soft_skill: {},
+          value: {},
+          work_condition: {},
+          interest: {},
+        },
+        investigation: {
+          competence: { strengths: [], acquired: [], toImprove: [] },
+          softSkills: { strengths: [], acquired: [], toImprove: [] },
+          topValues: [],
+          topWorkConditions: [],
+          interestsProfile: [],
+        },
+        conclusion: {
+          archetype: {
+            id: 'test',
+            title: 'Profil test',
+            subtitle: 'Sous-titre',
+            description: 'Description',
+          },
+          profileSummary: 'Résumé',
+          keyStrengths: [],
+          improvementAxes: [],
+          recommendedEnvironments: [],
+          recommendedJobs: [],
+          actionPlan: [],
+        },
+      }),
+    ]);
 
     const res = await request(app)
       .delete(`${BASE_URL}/account`)
@@ -229,8 +297,16 @@ describe('DELETE /api/profile/account', () => {
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/deleted/i);
 
-    const userAfter = await User.findById(userBefore!._id);
+    const userAfter = await User.findById(userId);
     expect(userAfter).toBeNull();
+    await expect(Swipe.countDocuments({ userId })).resolves.toBe(0);
+    await expect(SwipeQuota.countDocuments({ userId })).resolves.toBe(0);
+    await expect(BilanAnswerSet.countDocuments({ user: userId })).resolves.toBe(
+      0
+    );
+    await expect(
+      BilanCompetence.countDocuments({ user: userId })
+    ).resolves.toBe(0);
   });
 
   it('should return 401 if no token is provided', async () => {
@@ -391,5 +467,69 @@ describe('POST /api/profile/request-email-change', () => {
     expect(updated).not.toBeNull();
     expect(updated!.emailVerificationToken).toBeTruthy();
     expect(updated!.emailVerificationTokenExpires).toBeInstanceOf(Date);
+  });
+});
+
+describe('POST /api/profile/support-contact', () => {
+  it('should return 401 if no token is provided', async () => {
+    const res = await request(app).post(`${BASE_URL}/support-contact`).send({
+      category: 'account',
+      subject: 'Question sur mon compte',
+      message: 'Bonjour, je souhaite avoir de l’aide sur mon compte Matcha.',
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should reject invalid payload', async () => {
+    const { token } = await createUserAndGetToken();
+
+    const res = await request(app)
+      .post(`${BASE_URL}/support-contact`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'unknown',
+        subject: 'A',
+        message: 'Trop court',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should create a support request and send a support contact email', async () => {
+    const { token, user } = await createUserAndGetToken();
+
+    const res = await request(app)
+      .post(`${BASE_URL}/support-contact`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'privacy',
+        subject: 'Question RGPD',
+        message:
+          'Bonjour, je souhaite obtenir des informations sur mes données personnelles.',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.requestId).toBeTruthy();
+
+    const supportRequest = await SupportRequest.findById(res.body.requestId);
+    expect(supportRequest).not.toBeNull();
+    expect(supportRequest).toMatchObject({
+      email: user.email,
+      category: 'privacy',
+      subject: 'Question RGPD',
+      status: 'open',
+    });
+
+    expect(sendSupportContactEmail).toHaveBeenCalledWith({
+      fromEmail: user.email,
+      fromName: `${user.firstName} ${user.lastName}`,
+      requestId: res.body.requestId,
+      category: 'privacy',
+      subject: 'Question RGPD',
+      message:
+        'Bonjour, je souhaite obtenir des informations sur mes données personnelles.',
+    });
   });
 });

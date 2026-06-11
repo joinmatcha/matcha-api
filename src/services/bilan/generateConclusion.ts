@@ -14,6 +14,7 @@ interface GenerateConclusionInput {
   topValues: string[];
   topWorkConditions: string[];
   interestsProfile: string[];
+  feasibilityProfile: string[];
 }
 
 export const generateConclusion = async ({
@@ -24,6 +25,7 @@ export const generateConclusion = async ({
   topValues,
   topWorkConditions,
   interestsProfile,
+  feasibilityProfile,
 }: GenerateConclusionInput): Promise<{
   conclusion: BilanConclusionDTO;
   mappedTopValues: string[];
@@ -44,11 +46,16 @@ export const generateConclusion = async ({
     'work_condition',
     topWorkConditions
   );
+  const mappedFeasibility = mapSubdomainsToLabels(
+    'feasibility',
+    feasibilityProfile
+  );
 
   const archetype = resolveArchetype({
     interestsProfile,
     mappedStrengths,
     mappedTopValues,
+    mappedTopWorkConditions,
   });
 
   const profileSummary =
@@ -65,10 +72,13 @@ export const generateConclusion = async ({
       interestsProfile.length
         ? `Votre profil d’intérêts dominant est : ${interestsProfile.join(' + ')}.`
         : '',
+      mappedFeasibility.length
+        ? `Vos conditions de reconversion favorables sont : ${mappedFeasibility.join(', ')}.`
+        : '',
     ]
       .filter(Boolean)
       .join('\n') ||
-    'Ce bilan met en évidence vos axes de progression et constitue une base de réflexion pour votre évolution professionnelle.';
+    'Cette auto-évaluation met en évidence vos axes de progression et constitue une base de réflexion pour votre évolution professionnelle.';
 
   const recommendedJobs = await findRecommendedJobs({
     interestsProfile,
@@ -96,6 +106,7 @@ export const generateConclusion = async ({
     actionPlan: [
       'Sélectionner 1 à 2 pistes métiers et approfondir leur réalité (missions, compétences, formations).',
       'Identifier les écarts entre vos compétences actuelles et celles requises.',
+      'Évaluer la faisabilité concrète de chaque piste (formation, mobilité, rythme, impact financier).',
       'Construire un plan de montée en compétences ciblé (formations, projets, expériences).',
       'Échanger avec des professionnels du secteur pour confronter votre projet à la réalité.',
     ],

@@ -6,7 +6,8 @@ export type BilanQuestionDomain =
   | 'soft_skill'
   | 'value'
   | 'work_condition'
-  | 'interest';
+  | 'interest'
+  | 'feasibility';
 
 export type BilanQuestionType = 'likert_1_5' | 'open_text';
 
@@ -35,6 +36,7 @@ const BilanQuestionSchema = new Schema<BilanQuestionDocument>(
         'value',
         'work_condition',
         'interest',
+        'feasibility',
       ],
     },
     subdomain: { type: String, required: false },

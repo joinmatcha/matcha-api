@@ -2,14 +2,22 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 
+import { BilanAnswerSet } from '@/models/BilanAnswerSet';
+import { BilanCompetence } from '@/models/BilanCompetence';
 import ChatSession from '@/models/ChatSession';
 import CvParsing from '@/models/CvParsing';
 import LogFeedback from '@/models/LogFeedback';
 import PersonalityTest from '@/models/PersonalityTest';
 import Recommendation from '@/models/Recommendation';
 import SkillsAssessment from '@/models/SkillsAssessment';
+import { SupportRequest } from '@/models/SupportRequest';
+import { Swipe } from '@/models/Swipe';
+import { SwipeQuota } from '@/models/SwipeQuota';
 import User from '@/models/User';
-import { sendEmailChangeVerification } from '@/services/notifications/email';
+import {
+  sendEmailChangeVerification,
+  sendSupportContactEmail,
+} from '@/services/notifications/email';
 import { UserProfile, UserProfileUpdateInput } from '@/types/user';
 import { mapUserToProfile } from '@/utils/mapUserToProfile';
 import { hashToken } from '@/utils/token';
@@ -164,12 +172,16 @@ export const deleteAccount = async (
     }
 
     await Promise.all([
+      BilanAnswerSet.deleteMany({ user: userId }),
+      BilanCompetence.deleteMany({ user: userId }),
       SkillsAssessment.deleteMany({ userId }),
       PersonalityTest.deleteMany({ userId }),
       Recommendation.deleteMany({ userId }),
       LogFeedback.deleteMany({ userId }),
       CvParsing.deleteMany({ userId }),
       ChatSession.deleteMany({ userId }),
+      Swipe.deleteMany({ userId }),
+      SwipeQuota.deleteMany({ userId }),
     ]);
 
     await User.findByIdAndDelete(userId);
@@ -260,6 +272,57 @@ export const requestEmailChange = async (
 
     return res.status(200).json({
       message: 'Verification email sent',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const sendSupportContact = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Missing or invalid token' });
+    }
+
+    const user = await User.findById(userId).select('email firstName lastName');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { category, subject, message } = req.body as {
+      category: string;
+      subject: string;
+      message: string;
+    };
+
+    const supportRequest = await SupportRequest.create({
+      user: user._id,
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim() || user.email,
+      category,
+      subject,
+      message,
+    });
+
+    await sendSupportContactEmail({
+      fromEmail: user.email,
+      fromName: `${user.firstName} ${user.lastName}`.trim(),
+      requestId: supportRequest._id.toString(),
+      category,
+      subject,
+      message,
+    });
+
+    return res.status(201).json({
+      message: 'Support request sent',
+      requestId: supportRequest._id.toString(),
     });
   } catch (err) {
     next(err);

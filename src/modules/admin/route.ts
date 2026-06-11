@@ -20,10 +20,12 @@ import {
   getUserAdmin,
   listBilanQuestionsAdmin,
   listBilanVersionsAdmin,
+  listSupportRequestsAdmin,
   listTemplatesAdmin,
   listUsersAdmin,
   updateBilanQuestionAdmin,
   updateBilanVersionAdmin,
+  updateSupportRequestAdmin,
   updateTemplateAdmin,
   updateTemplateQuestionAdmin,
   updateUserAdmin,
@@ -48,11 +50,14 @@ import {
   adminLoginSchema,
   adminRomeSyncRunListQuerySchema,
   adminRomeSyncRunParamsSchema,
+  adminSupportRequestListQuerySchema,
+  adminSupportRequestParamsSchema,
   adminTemplateListQuerySchema,
   adminTemplateParamsSchema,
   adminTemplateQuestionParamsSchema,
   adminUpdateBilanQuestionSchema,
   adminUpdateBilanVersionSchema,
+  adminUpdateSupportRequestSchema,
   adminUpdateTemplateQuestionSchema,
   adminUpdateTemplateSchema,
   adminUpdateUserSchema,
@@ -85,6 +90,18 @@ router.patch(
 );
 
 router.get('/stats', getStatsAdmin);
+
+router.get(
+  '/support-requests',
+  validate(adminSupportRequestListQuerySchema, 'query'),
+  listSupportRequestsAdmin
+);
+router.patch(
+  '/support-requests/:id',
+  validate(adminSupportRequestParamsSchema, 'params'),
+  validate(adminUpdateSupportRequestSchema),
+  updateSupportRequestAdmin
+);
 
 router.get('/rome/status', getRomeStatusAdmin);
 router.post('/rome/sync', startRomeSyncAdmin);
