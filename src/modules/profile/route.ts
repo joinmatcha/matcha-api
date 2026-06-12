@@ -7,11 +7,13 @@ import {
   deleteAccount,
   getProfile,
   requestEmailChange,
+  sendSupportContact,
   updateProfile,
 } from '@/modules/profile/controller';
 import {
   changePasswordSchema,
   requestEmailChangeSchema,
+  supportContactSchema,
   updateProfileSchema,
 } from '@/modules/profile/schema';
 
@@ -35,6 +37,13 @@ router.post(
   requireAuth,
   validate(requestEmailChangeSchema),
   requestEmailChange
+);
+
+router.post(
+  '/support-contact',
+  requireAuth,
+  validate(supportContactSchema),
+  sendSupportContact
 );
 
 export default router;

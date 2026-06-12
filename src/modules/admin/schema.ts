@@ -44,6 +44,26 @@ export const adminUpdateUserSchema = z
     message: 'At least one field is required',
   });
 
+export const adminSupportRequestListQuerySchema = paginationSchema.extend({
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  category: z
+    .enum(['account', 'privacy', 'billing', 'bug', 'other'])
+    .optional(),
+});
+
+export const adminSupportRequestParamsSchema = z.object({
+  id: z.string().regex(objectIdRegex, 'Invalid support request id'),
+});
+
+export const adminUpdateSupportRequestSchema = z
+  .object({
+    status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+    adminNotes: z.string().trim().max(2000).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field is required',
+  });
+
 export const adminRomeSyncRunParamsSchema = z.object({
   id: z.string().regex(objectIdRegex, 'Invalid ROME sync run id'),
 });
@@ -136,6 +156,7 @@ export const adminBilanQuestionListQuerySchema = paginationSchema.extend({
       'value',
       'work_condition',
       'interest',
+      'feasibility',
     ])
     .optional(),
 });
@@ -187,6 +208,7 @@ const baseBilanQuestionSchema = z.object({
     'value',
     'work_condition',
     'interest',
+    'feasibility',
   ]),
   subdomain: z.string().trim().nullable().optional(),
   question: z.string().trim().min(1),

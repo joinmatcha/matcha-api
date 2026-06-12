@@ -11,6 +11,7 @@ import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
+import { compareJobsForUser } from '@/services/jobs/compare';
 import { mapJobLabels } from '@/utils/jobLabelMapper';
 
 function getDayKeyUTC(date = new Date()): string {
@@ -454,6 +455,24 @@ export const getTopLikedJobs = async (
         lastLikedAt: job.lastLikedAt,
       })),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const compareJobs = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const result = await compareJobsForUser(req.user.id, req.body.jobIds);
+
+    return res.status(200).json(result);
   } catch (error) {
     next(error);
   }

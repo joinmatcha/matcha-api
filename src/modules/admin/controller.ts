@@ -14,6 +14,7 @@ import { PersonalityVersion } from '@/models/PersonalityVersion';
 import { RomeAppellation } from '@/models/RomeAppellation';
 import { RomeMetier } from '@/models/RomeMetier';
 import { RomeSyncRun } from '@/models/RomeSyncRun';
+import { SupportRequest } from '@/models/SupportRequest';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 
@@ -446,6 +447,106 @@ export const updateUserAdmin = async (
       res.status(409).json({ message: 'User with this email already exists' });
       return;
     }
+    next(error);
+  }
+};
+
+export const listSupportRequestsAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const query = req.query as PaginationQuery & {
+      status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+      category?: 'account' | 'privacy' | 'billing' | 'bug' | 'other';
+    };
+    const { page, limit, skip } = buildPagination(query);
+    const q = typeof query.q === 'string' ? query.q.trim() : '';
+
+    const filter: Record<string, unknown> = {};
+
+    if (q) {
+      filter.$or = [
+        { email: { $regex: q, $options: 'i' } },
+        { name: { $regex: q, $options: 'i' } },
+        { subject: { $regex: q, $options: 'i' } },
+        { message: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    if (query.status) {
+      filter.status = query.status;
+    }
+
+    if (query.category) {
+      filter.category = query.category;
+    }
+
+    const [items, total] = await Promise.all([
+      SupportRequest.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SupportRequest.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSupportRequestAdmin = async (
+  req: Request<IdParams>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const update = req.body as {
+      status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+      adminNotes?: string;
+    };
+    const set: Record<string, unknown> = { ...update };
+    const unset: Record<string, ''> = {};
+
+    if (update.status && update.status !== 'open') {
+      set.handledBy = req.user?.id;
+      set.handledAt = new Date();
+    }
+
+    if (update.status === 'open') {
+      unset.handledBy = '';
+      unset.handledAt = '';
+    }
+
+    const updateOperation: Record<string, unknown> = { $set: set };
+    if (Object.keys(unset).length > 0) {
+      updateOperation.$unset = unset;
+    }
+
+    const supportRequest = await SupportRequest.findByIdAndUpdate(
+      req.params.id,
+      updateOperation,
+      { new: true, runValidators: true }
+    );
+
+    if (!supportRequest) {
+      res.status(404).json({ message: 'Support request not found' });
+      return;
+    }
+
+    res.status(200).json(supportRequest);
+  } catch (error) {
     next(error);
   }
 };

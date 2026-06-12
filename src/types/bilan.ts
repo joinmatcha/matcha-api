@@ -30,6 +30,7 @@ export interface BilanInvestigationDTO {
   topValues: string[];
   topWorkConditions: string[];
   interestsProfile: string[];
+  feasibilityProfile?: string[];
 }
 
 export interface BilanResultDTO {

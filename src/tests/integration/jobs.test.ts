@@ -4,6 +4,7 @@ import request from 'supertest';
 
 import app from '@/app';
 import { BilanCompetence } from '@/models/BilanCompetence';
+import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
@@ -46,9 +47,11 @@ const createMinimalBilan = async ({
     version: 1,
 
     investigation: {
+      competence: { strengths: ['analysis'], acquired: [], toImprove: [] },
+      softSkills: { strengths: ['autonomy'], acquired: [], toImprove: [] },
       topValues: [],
-      topWorkConditions: [],
-      interestsProfile: [],
+      topWorkConditions: ['remote'],
+      interestsProfile: ['RIASEC_I'],
     },
 
     conclusion: {
@@ -71,6 +74,7 @@ const createMinimalBilan = async ({
 describe('Jobs routes', () => {
   beforeEach(async () => {
     await RomeMetier.deleteMany({});
+    await RomeMarketStat.deleteMany({});
     await BilanCompetence.deleteMany({});
     await User.deleteMany({});
   });
@@ -534,6 +538,146 @@ describe('Jobs routes', () => {
       const res = await request(app).get('/api/jobs/recommended');
 
       expect(res.status).toBe(401);
+    });
+  });
+
+  describe('POST /api/jobs/compare', () => {
+    it('should compare 2 or 3 active jobs using the latest bilan', async () => {
+      const { user, token } = await createUserAndGetToken();
+      const first = await createRomeMetier({
+        code: 'M1805',
+        label: 'Développeur web',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [
+          { label: 'analysis', isMain: true },
+          { label: 'testing', isMain: true },
+        ],
+        workContexts: [{ label: 'remote' }],
+        accessToJob: 'Formation en développement web',
+      });
+      const second = await createRomeMetier({
+        code: 'M1403',
+        label: 'Data analyst',
+        riasec: { major: 'I', codes: ['RIASEC_I'] },
+        skills: [
+          { label: 'analysis', isMain: true },
+          { label: 'sql', isMain: true },
+        ],
+        workContexts: [{ label: 'hybrid' }],
+      });
+
+      await createMinimalBilan({ userId: user._id.toString() });
+      await RomeMarketStat.create({
+        metierId: first._id,
+        metierCode: first.code,
+        metierLabel: first.label,
+        territory: { type: 'NAT', code: 'FR', label: 'France' },
+        tension: {
+          label: 'Tension',
+          values: [{ label: 'Forte' }],
+        },
+        lastSyncedAt: new Date('2026-01-01'),
+      });
+
+      const res = await request(app)
+        .post('/api/jobs/compare')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jobIds: [first._id.toString(), second._id.toString()],
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.context).toMatchObject({
+        interestsProfile: ['RIASEC_I'],
+        strengths: ['Analyse', 'Autonomie'],
+        workConditions: ['Télétravail'],
+      });
+      expect(res.body.jobs).toHaveLength(2);
+      expect(res.body.jobs[0]).toMatchObject({
+        id: first._id.toString(),
+        title: 'Développeur web',
+        matchScore: expect.any(Number),
+        matchReasons: expect.arrayContaining([
+          'Compatible avec ton profil d’intérêts',
+          'Mobilise des compétences proches de ton profil',
+        ]),
+        matchedSkills: ['analysis'],
+        skillsToDevelop: ['testing'],
+        matchedWorkConditions: ['remote'],
+        market: {
+          territory: { type: 'NAT', code: 'FR', label: 'France' },
+        },
+      });
+      expect(res.body.jobs[1].title).toBe('Data analyst');
+    });
+
+    it('should return 401 if no token is provided', async () => {
+      const res = await request(app)
+        .post('/api/jobs/compare')
+        .send({
+          jobIds: [
+            new mongoose.Types.ObjectId().toString(),
+            new mongoose.Types.ObjectId().toString(),
+          ],
+        });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should validate the number of jobs', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const res = await request(app)
+        .post('/api/jobs/compare')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobIds: [new mongoose.Types.ObjectId().toString()] });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject duplicate job ids', async () => {
+      const { token } = await createUserAndGetToken();
+      const id = new mongoose.Types.ObjectId().toString();
+
+      const res = await request(app)
+        .post('/api/jobs/compare')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobIds: [id, id] });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 404 when the user has no bilan', async () => {
+      const { token } = await createUserAndGetToken();
+      const first = await createRomeMetier();
+      const second = await createRomeMetier();
+
+      const res = await request(app)
+        .post('/api/jobs/compare')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jobIds: [first._id.toString(), second._id.toString()],
+        });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('No bilan found');
+    });
+
+    it('should return 404 when one job is inactive', async () => {
+      const { user, token } = await createUserAndGetToken();
+      const active = await createRomeMetier();
+      const inactive = await createRomeMetier({ isActive: false });
+      await createMinimalBilan({ userId: user._id.toString() });
+
+      const res = await request(app)
+        .post('/api/jobs/compare')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jobIds: [active._id.toString(), inactive._id.toString()],
+        });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('One or more jobs were not found');
     });
   });
 

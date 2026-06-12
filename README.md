@@ -141,9 +141,9 @@ Ce mécanisme est défini dans `src/index.ts` et répliqué dans chaque script d
 | `jobs`                 | Catalogue des métiers                                |
 | `personalitytemplates` | Templates de test de personnalité                    |
 | `personalitytests`     | Résultats des tests de personnalité                  |
-| `bilanquestions`       | Questions du bilan de compétences                    |
+| `bilanquestions`       | Questions de l'auto-évaluation professionnelle       |
 | `bilancompetences`     | Référentiel de compétences                           |
-| `bilananswersets`      | Réponses aux bilans                                  |
+| `bilananswersets`      | Réponses aux auto-évaluations professionnelles       |
 | `skillsassessments`    | Évaluations de compétences                           |
 | `recommendations`      | Recommandations de métiers                           |
 | `swipes`               | Historique des swipes (like/dislike sur les métiers) |
@@ -159,13 +159,13 @@ Les seeds permettent de peupler la base de données avec les données de référ
 
 - Au **premier déploiement** (base vide)
 - Après un **reset de la base de données**
-- Lors de la mise à jour des référentiels de tests/bilans
+- Lors de la mise à jour des référentiels de tests/auto-évaluations
 
 ### Sur MongoDB Atlas (distant)
 
 ```bash
 NODE_ENV=development yarn seed:personality
-NODE_ENV=development yarn seed:bilan
+NODE_ENV=development yarn seed:bilan --version=2
 NODE_ENV=development yarn sync:rome
 ```
 
@@ -173,16 +173,26 @@ NODE_ENV=development yarn sync:rome
 
 ```bash
 yarn seed:personality
-yarn seed:bilan
+yarn seed:bilan --version=2
 yarn sync:rome
 ```
 
 ### Détail des scripts
 
-| Script                  | Description                                  |
-| ----------------------- | -------------------------------------------- |
-| `yarn seed:personality` | Peuple les templates de test de personnalité |
-| `yarn seed:bilan`       | Peuple les questions et compétences du bilan |
+| Script                  | Description                                              |
+| ----------------------- | -------------------------------------------------------- |
+| `yarn seed:personality` | Peuple les templates de test de personnalité             |
+| `yarn seed:bilan`       | Peuple les questions et compétences de l'auto-évaluation |
+
+`yarn seed:bilan` utilise la version de seed par défaut. Pour choisir explicitement une version :
+
+```bash
+yarn seed:bilan --version=2
+yarn seed:bilan --version 2
+BILAN_VERSION=2 yarn seed:bilan
+```
+
+Si une future V3 est ajoutée, elle devra être déclarée dans `src/seeds/bilanQuestionSets.ts` avec son jeu de questions dédié avant de pouvoir être seedée.
 
 ### Autres scripts utilitaires
 
@@ -266,6 +276,124 @@ Après une évolution du mapper, il est possible de recalculer les champs normal
 yarn remap:market
 ```
 
+## Logique de recommandation métier
+
+La recommandation métier repose sur un scoring déterministe et explicable. L'objectif n'est pas de prédire "le métier parfait", mais de classer des pistes pertinentes à partir du profil utilisateur et des données métier disponibles.
+
+### Données utilisées
+
+Le calcul combine deux sources :
+
+- **Auto-évaluation professionnelle** : réponses Likert 1-5, regroupées par domaines et sous-domaines.
+- **Référentiel métier ROME** : centres d'intérêts RIASEC, compétences, contextes de travail, conditions d'accès et données marché si disponibles.
+
+Les réponses ouvertes de l'auto-évaluation sont conservées, mais elles ne participent pas directement au scoring automatique.
+
+### Étape 1 : construire le profil utilisateur
+
+Les réponses numériques sont agrégées par moyenne sur chaque sous-domaine :
+
+```text
+score_sous_domaine = somme_des_reponses / nombre_de_questions
+```
+
+Les compétences et soft skills sont ensuite classées :
+
+| Score moyen | Classement  |
+| ----------- | ----------- |
+| `>= 4`      | Force       |
+| `>= 3`      | Acquis      |
+| `< 3`       | À améliorer |
+
+Pour les valeurs, conditions de travail, intérêts RIASEC et faisabilité, on garde uniquement les signaux vraiment marqués :
+
+| Domaine               | Nombre max gardé | Score minimum |
+| --------------------- | ---------------- | ------------- |
+| Valeurs               | 3                | `3.5`         |
+| Conditions de travail | 3                | `3.5`         |
+| Intérêts RIASEC       | 2                | `3.5`         |
+| Faisabilité           | 3                | `3.5`         |
+
+Ce seuil évite de recommander des métiers sur des préférences faibles ou ambiguës.
+
+### Étape 2 : scorer les métiers recommandés
+
+Pour la liste principale des pistes métier, l'API ne regarde que les métiers actifs qui partagent au moins un code RIASEC avec le profil utilisateur. Chaque métier reçoit ensuite un score sur 100 :
+
+```text
+score =
+  55 * nombre_de_matchs_RIASEC
+  + 7 * nombre_de_competences_matchees, plafonne a 5
+  + 5 * nombre_de_contextes_de_travail_matches, plafonne a 3
+```
+
+Le score est plafonné à `100`, puis seuls les métiers avec un score `>= 60` sont conservés.
+
+Les raisons affichées à l'utilisateur sont générées à partir des critères réellement matchés :
+
+- `Compatible avec ton profil d’intérêts`
+- `Mobilise des compétences proches de ton profil`
+- `Compatible avec tes conditions de travail idéales`
+
+### Étape 3 : comparer des métiers sélectionnés
+
+La comparaison utilise la même logique, mais elle est appliquée uniquement aux 2 ou 3 métiers choisis par l'utilisateur. Le poids RIASEC est légèrement plus faible pour laisser plus de place aux compétences et aux conditions de travail dans une comparaison courte :
+
+```text
+score_comparaison =
+  45 * nombre_de_matchs_RIASEC
+  + 8 * nombre_de_competences_matchees, plafonne a 5
+  + 5 * nombre_de_contextes_de_travail_matches, plafonne a 3
+```
+
+La comparaison ajoute aussi :
+
+- les compétences déjà proches du profil ;
+- les compétences principales à développer ;
+- les conditions de travail compatibles ;
+- les données marché disponibles ;
+- une prochaine action recommandée.
+
+### Exemple simple
+
+Imaginons un utilisateur avec ce profil :
+
+- intérêts RIASEC : `Investigateur`, `Social` ;
+- forces : `Analyse`, `Communication` ;
+- condition de travail importante : `Télétravail`.
+
+Un métier A contient :
+
+- RIASEC : `Investigateur` ;
+- compétences : `Analyse`, `Tests`, `Documentation` ;
+- contexte : `Télétravail possible`.
+
+Son score de recommandation est :
+
+```text
+55 * 1 match RIASEC
++ 7 * 1 competence matchee
++ 5 * 1 contexte matche
+= 67 / 100
+```
+
+Le métier passe donc le seuil de recommandation (`>= 60`) et pourra être proposé avec les raisons :
+
+- compatible avec le profil d'intérêts ;
+- mobilise une compétence proche du profil ;
+- compatible avec une condition de travail importante.
+
+### Niveau de confiance
+
+Ce calcul est solide pour un MVP parce qu'il est :
+
+- **explicable** : chaque score peut être relié à des critères visibles ;
+- **stable** : les résultats ne dépendent pas d'un modèle opaque ou aléatoire ;
+- **maintenable** : les poids, seuils et critères sont centralisés dans les services de scoring ;
+- **prudent** : les signaux faibles sont filtrés avec un seuil minimum.
+
+Il ne doit pas être considéré comme une validation scientifique du projet professionnel. Pour améliorer encore la pertinence, les prochaines étapes seraient de calibrer les poids avec des retours utilisateurs, d'ajouter des exclusions fortes, de mieux pondérer les compétences principales ROME et d'intégrer progressivement les contraintes réelles de reconversion.
+
 ## Build et déploiement
 
 ### Build
@@ -315,7 +443,7 @@ Le déploiement se déclenche automatiquement à chaque push sur la branche `mvp
 | `yarn test`                  | Exécute les tests Jest                                    |
 | `yarn test:coverage`         | Exécute les tests avec rapport de couverture              |
 | `yarn seed:personality`      | Peuple les templates de personnalité                      |
-| `yarn seed:bilan`            | Peuple les données du bilan                               |
+| `yarn seed:bilan`            | Peuple les données de l'auto-évaluation                   |
 | `yarn admin:promote <email>` | Promeut un utilisateur en admin                           |
 | `yarn reset:swipes`          | Supprime tous les swipes                                  |
 | `yarn cleanup:users`         | Supprime les utilisateurs non vérifiés expirés            |
@@ -352,7 +480,7 @@ src/
 ├── models/           # Modèles Mongoose (schémas MongoDB)
 ├── modules/          # Modules métier (routes + contrôleurs)
 ├── scripts/          # Scripts CLI (seeds, admin, cleanup)
-├── seeds/            # Données de seed (jobs, personnalité, bilan)
+├── seeds/            # Données de seed (jobs, personnalité, auto-évaluation)
 ├── services/         # Logique métier (email, matching, etc.)
 ├── tests/            # Tests Jest
 ├── types/            # Types TypeScript partagés

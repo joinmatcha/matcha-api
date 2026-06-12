@@ -69,3 +69,9 @@ export const changePasswordSchema = z.object({
 export const requestEmailChangeSchema = z.object({
   newEmail: z.string().email({ message: 'Invalid email format' }),
 });
+
+export const supportContactSchema = z.object({
+  category: z.enum(['account', 'privacy', 'billing', 'bug', 'other']),
+  subject: z.string().trim().min(3).max(120),
+  message: z.string().trim().min(20).max(2000),
+});

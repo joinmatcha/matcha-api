@@ -87,4 +87,47 @@ describe('computeBilan', () => {
 
     expect(result.investigation.competence.toImprove).toContain('analysis');
   });
+
+  it('should ignore weak top signals and compute feasibility profile', async () => {
+    const userId = new mongoose.Types.ObjectId().toString();
+
+    await BilanQuestion.create([
+      {
+        code: 'I1',
+        domain: 'interest',
+        subdomain: 'RIASEC_I',
+        question: 'Investigateur',
+        type: 'likert_1_5',
+        version: 1,
+        isActive: true,
+      },
+      {
+        code: 'F1',
+        domain: 'feasibility',
+        subdomain: 'training_time',
+        question: 'Temps de formation',
+        type: 'likert_1_5',
+        version: 1,
+        isActive: true,
+      },
+    ]);
+
+    const answers = await BilanAnswerSet.create({
+      user: userId,
+      version: 1,
+      answers: [
+        { questionCode: 'C1', valueNumber: 4 },
+        { questionCode: 'I1', valueNumber: 2 },
+        { questionCode: 'F1', valueNumber: 5 },
+      ],
+    });
+
+    const questions = await BilanQuestion.find({ version: 1 });
+
+    const result = await computeAndStoreBilan(questions, answers);
+
+    expect(result.investigation.interestsProfile).toEqual([]);
+    expect(result.investigation.feasibilityProfile).toContain('training_time');
+    expect(result.scores.feasibility.training_time).toBe(5);
+  });
 });

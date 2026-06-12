@@ -61,7 +61,7 @@ export async function findRecommendedJobs(
       reasons.push('Compatible avec ton profil d’intérêts');
     }
     if (skillMatches.length > 0) {
-      reasons.push('Mobilise des compétences proches de ton bilan');
+      reasons.push('Mobilise des compétences proches de ton profil');
     }
     if (contextMatches.length > 0) {
       reasons.push('Compatible avec tes conditions de travail idéales');

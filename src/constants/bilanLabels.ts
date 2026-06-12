@@ -4,6 +4,7 @@ export const BILAN_DOMAIN_LABELS: Record<string, string> = {
   value: 'Valeurs professionnelles',
   work_condition: 'Conditions de travail',
   interest: 'Centres d’intérêt',
+  feasibility: 'Faisabilité de reconversion',
 };
 
 export const BILAN_SUBDOMAIN_LABELS: Record<string, Record<string, string>> = {
@@ -53,5 +54,14 @@ export const BILAN_SUBDOMAIN_LABELS: Record<string, Record<string, string>> = {
     RIASEC_S: 'Social',
     RIASEC_E: 'Entreprenant',
     RIASEC_C: 'Conventionnel',
+  },
+
+  feasibility: {
+    training_time: 'Temps disponible pour se former',
+    long_training: 'Ouverture à une formation longue',
+    financial_flexibility: 'Flexibilité financière temporaire',
+    mobility: 'Mobilité géographique',
+    junior_restart: 'Ouverture à redémarrer junior',
+    transition_speed: 'Besoin de transition rapide',
   },
 };

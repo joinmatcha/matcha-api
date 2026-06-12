@@ -9,6 +9,7 @@ export interface AggregatedScores {
   value: ScoreMap;
   work_condition: ScoreMap;
   interest: ScoreMap;
+  feasibility: ScoreMap;
 }
 
 export interface SkillClassification {
@@ -34,6 +35,7 @@ export function aggregateScores(
     value: {},
     work_condition: {},
     interest: {},
+    feasibility: {},
   };
 
   const buckets: Record<string, { sum: number; count: number }> = {};
@@ -89,8 +91,9 @@ export function classifyCompetences(scores: ScoreMap): SkillClassification {
 /**
  * Retourne les N sous-domaines les mieux scorés
  */
-export function topKeys(scores: ScoreMap, n = 3): string[] {
+export function topKeys(scores: ScoreMap, n = 3, minScore = 0): string[] {
   return Object.entries(scores)
+    .filter(([, score]) => score >= minScore)
     .sort((a, b) => b[1] - a[1])
     .slice(0, n)
     .map(([key]) => key);

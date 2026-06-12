@@ -4,6 +4,7 @@ interface ResolveArchetypeInput {
   interestsProfile: string[];
   mappedStrengths: string[];
   mappedTopValues: string[];
+  mappedTopWorkConditions: string[];
 }
 
 type ArchetypeRule = {
@@ -57,7 +58,7 @@ const ARCHETYPES: ArchetypeRule[] = [
       'Tu sais prendre de la hauteur, décider et fédérer autour d’une vision. Tu es à l’aise dans les rôles de pilotage et de coordination.',
     score: ({ interestsProfile, mappedStrengths, mappedTopValues }) =>
       (interestsProfile.includes('RIASEC_E') ? 3 : 0) +
-      (mappedStrengths.includes('Leadership') ? 2 : 0) +
+      (mappedStrengths.includes('Management') ? 2 : 0) +
       (mappedTopValues.includes('Autonomie') ? 1 : 0),
   },
 
@@ -67,9 +68,9 @@ const ARCHETYPES: ArchetypeRule[] = [
     subtitle: 'Agir concrètement et voir des résultats',
     description:
       'Tu préfères l’action au discours et apprécies les environnements dynamiques, concrets et opérationnels.',
-    score: ({ interestsProfile, mappedTopValues }) =>
+    score: ({ interestsProfile, mappedTopWorkConditions }) =>
       (interestsProfile.includes('RIASEC_R') ? 3 : 0) +
-      (mappedTopValues.includes('Activité physique') ? 2 : 0),
+      (mappedTopWorkConditions.includes('Activité physique') ? 2 : 0),
   },
 ];
 

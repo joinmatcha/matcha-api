@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { requireAuth } from '@/middlewares/auth.middleware';
 import { validate } from '@/middlewares/validate.middleware';
 import {
+  compareJobs,
   getDeck,
   getJobById,
   getRecommendedJobs,
@@ -11,6 +12,7 @@ import {
   swipeJob,
 } from '@/modules/jobs/controller';
 import {
+  compareJobsSchema,
   jobIdParamsSchema,
   listJobsQuerySchema,
   swipeJobSchema,
@@ -28,6 +30,7 @@ router.get(
   validate(topLikedJobsQuerySchema, 'query'),
   getTopLikedJobs
 );
+router.post('/compare', requireAuth, validate(compareJobsSchema), compareJobs);
 router.post('/swipe', requireAuth, validate(swipeJobSchema), swipeJob);
 router.get(
   '/:id',

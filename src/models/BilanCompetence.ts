@@ -6,6 +6,7 @@ export interface ScoreMaps {
   value: Record<string, number>;
   work_condition: Record<string, number>;
   interest: Record<string, number>;
+  feasibility: Record<string, number>;
 }
 
 export interface SkillClassification {
@@ -20,6 +21,7 @@ export interface InvestigationSection {
   topValues: string[]; // subdomains techniques
   topWorkConditions: string[]; // subdomains techniques
   interestsProfile: string[]; // ex: ["RIASEC_I", "RIASEC_A"]
+  feasibilityProfile: string[];
 }
 
 interface ArchetypeSection {
@@ -98,6 +100,7 @@ const InvestigationSchema = new Schema(
     topValues: { type: [String], default: [] },
     topWorkConditions: { type: [String], default: [] },
     interestsProfile: { type: [String], default: [] },
+    feasibilityProfile: { type: [String], default: [] },
   },
   { _id: false }
 );
@@ -158,6 +161,7 @@ const BilanCompetenceSchema = new Schema(
       value: ScoreMapSchema,
       work_condition: ScoreMapSchema,
       interest: ScoreMapSchema,
+      feasibility: ScoreMapSchema,
     },
 
     investigation: {
