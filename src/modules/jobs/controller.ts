@@ -12,6 +12,10 @@ import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
 import { compareJobsForUser } from '@/services/jobs/compare';
+import {
+  computeWorkStyleCompatibility,
+  getLatestWorkStyleResult,
+} from '@/services/workStyle/compute';
 import { mapJobLabels } from '@/utils/jobLabelMapper';
 
 function getDayKeyUTC(date = new Date()): string {
@@ -502,17 +506,22 @@ export const getJobById = async (
       .lean();
 
     let recommendation;
+    let workStyleCompatibility = null;
 
     if (req.user) {
-      const bilan = await BilanCompetence.findOne({
-        user: req.user.id,
-      })
-        .sort({ createdAt: -1 })
-        .lean();
+      const [bilan, workStyle] = await Promise.all([
+        BilanCompetence.findOne({
+          user: req.user.id,
+        })
+          .sort({ createdAt: -1 })
+          .lean(),
+        getLatestWorkStyleResult(req.user.id),
+      ]);
 
       recommendation = bilan?.conclusion.recommendedJobs.find(
         (j) => j.id === id
       );
+      workStyleCompatibility = computeWorkStyleCompatibility(workStyle, job);
     }
 
     return res.status(200).json({
@@ -537,6 +546,7 @@ export const getJobById = async (
         isExecutive: job.isExecutive,
         isRegulated: job.isRegulated,
         market: formatMarketStats(market),
+        workStyleCompatibility,
         lastSyncedAt: job.lastSyncedAt,
       },
       recommendation,

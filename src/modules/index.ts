@@ -8,6 +8,7 @@ import jobsRoutes from '@/modules/jobs/route';
 import personalityRoutes from '@/modules/personality/route';
 import profileRoutes from '@/modules/profile/route';
 import userRoutes from '@/modules/users/route';
+import workStyleRoutes from '@/modules/workStyle/route';
 
 export const registerRoutes = (app: Express): void => {
   app.use('/api/admin', adminRoutes);
@@ -18,4 +19,5 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/personality', personalityRoutes);
   app.use('/api/bilan', bilanRoutes);
   app.use('/api/jobs', jobsRoutes);
+  app.use('/api/work-style', workStyleRoutes);
 };

@@ -8,6 +8,7 @@ import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
+import { WorkStyleResult } from '@/models/WorkStyleResult';
 import { buildRomeMetier, createRomeMetier } from '@/tests/helpers/rome';
 
 const createUserAndGetToken = async () => {
@@ -731,6 +732,56 @@ describe('Jobs routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.recommendation).toBeDefined();
       expect(res.body.recommendation.score).toBe(75);
+    });
+
+    it('should include work style compatibility when available', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      const job = await createRomeMetier({
+        label: 'Conseiller relation client',
+        definition: 'Accompagne et conseille le public',
+        workContexts: [{ label: 'Contact client' }],
+        skills: [{ label: 'Relation client' }],
+      });
+
+      await WorkStyleResult.create({
+        user: user._id,
+        versionId: new mongoose.Types.ObjectId(),
+        version: 1,
+        answers: [],
+        scores: {
+          autonomy: 50,
+          collaboration: 80,
+          pace: 60,
+          structure: 50,
+          variety: 50,
+          human_contact: 100,
+          mobility: 50,
+          learning: 50,
+        },
+        topAxes: ['human_contact', 'collaboration'],
+        profile: {
+          key: 'collaborative_dynamic',
+          title: 'Collaboratif dynamique',
+          description: 'Description',
+          strengths: [],
+          cautions: [],
+          advice: [],
+        },
+      });
+
+      const res = await request(app)
+        .get(`/api/jobs/${job._id}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.job.workStyleCompatibility).toMatchObject({
+        level: expect.any(String),
+        label: expect.stringContaining('style professionnel'),
+      });
+      expect(
+        res.body.job.workStyleCompatibility.reasons.length
+      ).toBeGreaterThan(0);
     });
 
     it('should return 404 if job does not exist', async () => {

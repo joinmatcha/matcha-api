@@ -17,6 +17,8 @@ import { RomeSyncRun } from '@/models/RomeSyncRun';
 import { SupportRequest } from '@/models/SupportRequest';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
+import { WorkStyleQuestion } from '@/models/WorkStyleQuestion';
+import { WorkStyleVersion } from '@/models/WorkStyleVersion';
 
 type PaginationQuery = {
   page?: number;
@@ -144,6 +146,20 @@ const ensureSingleActiveBilanVersion = async (
 const getBilanVersionByNumber = async (version: number) => {
   const bilanVersion = await BilanVersion.findOne({ version });
   return bilanVersion ?? null;
+};
+
+const ensureSingleActiveWorkStyleVersion = async (
+  version: number
+): Promise<void> => {
+  await WorkStyleVersion.updateMany(
+    { version: { $ne: version }, isActive: true },
+    { $set: { isActive: false, status: 'archived' } }
+  );
+};
+
+const getWorkStyleVersionByNumber = async (version: number) => {
+  const workStyleVersion = await WorkStyleVersion.findOne({ version });
+  return workStyleVersion ?? null;
 };
 
 export const adminLogin = async (
@@ -1366,6 +1382,357 @@ export const updateBilanQuestionAdmin = async (
       res
         .status(409)
         .json({ message: 'A question with this code already exists' });
+      return;
+    }
+    next(error);
+  }
+};
+
+export const listWorkStyleVersionsAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const query = req.query as PaginationQuery & {
+      status?: 'draft' | 'active' | 'archived';
+      isActive?: boolean;
+    };
+    const { page, limit, skip } = buildPagination(query);
+    const q = typeof query.q === 'string' ? query.q.trim() : '';
+    const filter: Record<string, unknown> = {};
+
+    if (q) {
+      filter.$or = [
+        { title: { $regex: q, $options: 'i' } },
+        { summary: { $regex: q, $options: 'i' } },
+      ];
+    }
+    if (query.status) filter.status = query.status;
+    if (typeof query.isActive === 'boolean') filter.isActive = query.isActive;
+
+    const [items, total] = await Promise.all([
+      WorkStyleVersion.find(filter)
+        .sort({ version: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      WorkStyleVersion.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createWorkStyleVersionAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const workStyleVersion = await WorkStyleVersion.create({
+      ...req.body,
+      isActive: req.body.isActive ?? false,
+      status:
+        req.body.status ??
+        ((req.body.isActive as boolean | undefined) ? 'active' : 'draft'),
+      profiles: req.body.profiles ?? [],
+    });
+
+    if (workStyleVersion.isActive) {
+      await ensureSingleActiveWorkStyleVersion(workStyleVersion.version);
+    }
+
+    res.status(201).json(workStyleVersion);
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      res.status(409).json({
+        message: 'A work style version with this version already exists',
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
+export const updateWorkStyleVersionAdmin = async (
+  req: Request<{ version: string }>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const versionNumber = Number(req.params.version);
+    const workStyleVersion = await getWorkStyleVersionByNumber(versionNumber);
+
+    if (!workStyleVersion) {
+      res.status(404).json({ message: 'Work style version not found' });
+      return;
+    }
+
+    workStyleVersion.set(req.body);
+    if (workStyleVersion.isActive) {
+      workStyleVersion.status = 'active';
+    } else if (workStyleVersion.status === 'active') {
+      workStyleVersion.status = 'archived';
+    }
+
+    await workStyleVersion.save();
+    if (workStyleVersion.isActive) {
+      await ensureSingleActiveWorkStyleVersion(workStyleVersion.version);
+    }
+
+    res.status(200).json(workStyleVersion);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const duplicateWorkStyleVersionAdmin = async (
+  req: Request<{ version: string }>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sourceVersion = Number(req.params.version);
+    const source = await getWorkStyleVersionByNumber(sourceVersion);
+
+    if (!source) {
+      res.status(404).json({ message: 'Work style version not found' });
+      return;
+    }
+
+    const { version, title, summary } = req.body as {
+      version: number;
+      title?: string;
+      summary?: string;
+    };
+
+    if (await getWorkStyleVersionByNumber(version)) {
+      res.status(409).json({
+        message: 'A work style version with this version already exists',
+      });
+      return;
+    }
+
+    const sourceQuestions = await WorkStyleQuestion.find({
+      version: sourceVersion,
+    }).lean();
+
+    const clone = await WorkStyleVersion.create({
+      version,
+      title: title ?? source.title,
+      summary: summary ?? source.summary,
+      profiles: source.profiles,
+      isActive: false,
+      status: 'draft',
+    });
+
+    if (sourceQuestions.length > 0) {
+      await WorkStyleQuestion.insertMany(
+        sourceQuestions.map((question) => ({
+          code: question.code,
+          text: question.text,
+          dimension: question.dimension,
+          polarity: question.polarity,
+          order: question.order,
+          isActive: question.isActive,
+          version,
+          versionId: clone._id,
+        }))
+      );
+    }
+
+    res.status(201).json(clone);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const activateWorkStyleVersionAdmin = async (
+  req: Request<{ version: string }>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const versionNumber = Number(req.params.version);
+    const workStyleVersion = await getWorkStyleVersionByNumber(versionNumber);
+
+    if (!workStyleVersion) {
+      res.status(404).json({ message: 'Work style version not found' });
+      return;
+    }
+
+    const activeQuestionsCount = await WorkStyleQuestion.countDocuments({
+      version: versionNumber,
+      isActive: true,
+    });
+
+    if (activeQuestionsCount === 0) {
+      res.status(400).json({
+        message:
+          'Cannot activate a work style version without active questions',
+      });
+      return;
+    }
+
+    workStyleVersion.isActive = true;
+    workStyleVersion.status = 'active';
+    await workStyleVersion.save();
+    await ensureSingleActiveWorkStyleVersion(versionNumber);
+
+    res.status(200).json(workStyleVersion);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deactivateWorkStyleVersionAdmin = async (
+  req: Request<{ version: string }>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const versionNumber = Number(req.params.version);
+    const workStyleVersion = await getWorkStyleVersionByNumber(versionNumber);
+
+    if (!workStyleVersion) {
+      res.status(404).json({ message: 'Work style version not found' });
+      return;
+    }
+
+    workStyleVersion.isActive = false;
+    workStyleVersion.status = 'archived';
+    await workStyleVersion.save();
+
+    res.status(200).json(workStyleVersion);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listWorkStyleQuestionsAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const query = req.query as PaginationQuery & {
+      version?: number;
+      isActive?: boolean;
+      dimension?: string;
+    };
+    const { page, limit, skip } = buildPagination(query);
+    const q = typeof query.q === 'string' ? query.q.trim() : '';
+    const filter: Record<string, unknown> = {};
+
+    if (q) {
+      filter.$or = [
+        { code: { $regex: q, $options: 'i' } },
+        { text: { $regex: q, $options: 'i' } },
+      ];
+    }
+    if (typeof query.version === 'number') filter.version = query.version;
+    if (typeof query.isActive === 'boolean') filter.isActive = query.isActive;
+    if (query.dimension) filter.dimension = query.dimension;
+
+    const [items, total] = await Promise.all([
+      WorkStyleQuestion.find(filter)
+        .sort({ version: -1, order: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      WorkStyleQuestion.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createWorkStyleQuestionAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const version = await getWorkStyleVersionByNumber(req.body.version);
+    if (!version) {
+      res.status(400).json({ message: 'Work style version does not exist' });
+      return;
+    }
+
+    const question = await WorkStyleQuestion.create({
+      ...req.body,
+      versionId: version._id,
+      polarity: req.body.polarity ?? 1,
+      order: req.body.order ?? 0,
+    });
+
+    res.status(201).json(question);
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      res.status(409).json({
+        message: 'A work style question with this code already exists',
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
+export const updateWorkStyleQuestionAdmin = async (
+  req: Request<IdParams>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const update = { ...req.body };
+
+    if (typeof update.version === 'number') {
+      const version = await getWorkStyleVersionByNumber(update.version);
+      if (!version) {
+        res.status(400).json({ message: 'Work style version does not exist' });
+        return;
+      }
+      update.versionId = version._id;
+    }
+
+    const question = await WorkStyleQuestion.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true, runValidators: true }
+    );
+
+    if (!question) {
+      res.status(404).json({ message: 'Work style question not found' });
+      return;
+    }
+
+    res.status(200).json(question);
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      res.status(409).json({
+        message: 'A work style question with this code already exists',
+      });
       return;
     }
     next(error);
