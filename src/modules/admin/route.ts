@@ -5,17 +5,22 @@ import { validate } from '@/middlewares/validate.middleware';
 import {
   activateBilanVersionAdmin,
   activateTemplateAdmin,
+  activateWorkStyleVersionAdmin,
   addTemplateQuestionAdmin,
   adminLogin,
   adminLogout,
   createBilanQuestionAdmin,
   createBilanVersionAdmin,
   createTemplateAdmin,
+  createWorkStyleQuestionAdmin,
+  createWorkStyleVersionAdmin,
   deactivateBilanVersionAdmin,
   deactivateTemplateAdmin,
+  deactivateWorkStyleVersionAdmin,
   deleteTemplateQuestionAdmin,
   duplicateBilanVersionAdmin,
   duplicateTemplateAdmin,
+  duplicateWorkStyleVersionAdmin,
   getStatsAdmin,
   getUserAdmin,
   listBilanQuestionsAdmin,
@@ -23,12 +28,16 @@ import {
   listSupportRequestsAdmin,
   listTemplatesAdmin,
   listUsersAdmin,
+  listWorkStyleQuestionsAdmin,
+  listWorkStyleVersionsAdmin,
   updateBilanQuestionAdmin,
   updateBilanVersionAdmin,
   updateSupportRequestAdmin,
   updateTemplateAdmin,
   updateTemplateQuestionAdmin,
   updateUserAdmin,
+  updateWorkStyleQuestionAdmin,
+  updateWorkStyleVersionAdmin,
 } from '@/modules/admin/controller';
 import {
   getRomeStatusAdmin,
@@ -45,8 +54,11 @@ import {
   adminCreateBilanQuestionSchema,
   adminCreateBilanVersionSchema,
   adminCreateTemplateSchema,
+  adminCreateWorkStyleQuestionSchema,
+  adminCreateWorkStyleVersionSchema,
   adminDuplicateBilanVersionSchema,
   adminDuplicateTemplateSchema,
+  adminDuplicateWorkStyleVersionSchema,
   adminLoginSchema,
   adminRomeSyncRunListQuerySchema,
   adminRomeSyncRunParamsSchema,
@@ -61,8 +73,14 @@ import {
   adminUpdateTemplateQuestionSchema,
   adminUpdateTemplateSchema,
   adminUpdateUserSchema,
+  adminUpdateWorkStyleQuestionSchema,
+  adminUpdateWorkStyleVersionSchema,
   adminUserListQuerySchema,
   adminUserParamsSchema,
+  adminWorkStyleQuestionListQuerySchema,
+  adminWorkStyleQuestionParamsSchema,
+  adminWorkStyleVersionListQuerySchema,
+  adminWorkStyleVersionParamsSchema,
 } from '@/modules/admin/schema';
 
 const router = Router();
@@ -214,6 +232,56 @@ router.patch(
   validate(adminBilanQuestionParamsSchema, 'params'),
   validate(adminUpdateBilanQuestionSchema),
   updateBilanQuestionAdmin
+);
+
+router.get(
+  '/work-style-versions',
+  validate(adminWorkStyleVersionListQuerySchema, 'query'),
+  listWorkStyleVersionsAdmin
+);
+router.post(
+  '/work-style-versions',
+  validate(adminCreateWorkStyleVersionSchema),
+  createWorkStyleVersionAdmin
+);
+router.patch(
+  '/work-style-versions/:version',
+  validate(adminWorkStyleVersionParamsSchema, 'params'),
+  validate(adminUpdateWorkStyleVersionSchema),
+  updateWorkStyleVersionAdmin
+);
+router.post(
+  '/work-style-versions/:version/duplicate',
+  validate(adminWorkStyleVersionParamsSchema, 'params'),
+  validate(adminDuplicateWorkStyleVersionSchema),
+  duplicateWorkStyleVersionAdmin
+);
+router.post(
+  '/work-style-versions/:version/activate',
+  validate(adminWorkStyleVersionParamsSchema, 'params'),
+  activateWorkStyleVersionAdmin
+);
+router.post(
+  '/work-style-versions/:version/deactivate',
+  validate(adminWorkStyleVersionParamsSchema, 'params'),
+  deactivateWorkStyleVersionAdmin
+);
+
+router.get(
+  '/work-style-questions',
+  validate(adminWorkStyleQuestionListQuerySchema, 'query'),
+  listWorkStyleQuestionsAdmin
+);
+router.post(
+  '/work-style-questions',
+  validate(adminCreateWorkStyleQuestionSchema),
+  createWorkStyleQuestionAdmin
+);
+router.patch(
+  '/work-style-questions/:id',
+  validate(adminWorkStyleQuestionParamsSchema, 'params'),
+  validate(adminUpdateWorkStyleQuestionSchema),
+  updateWorkStyleQuestionAdmin
 );
 
 export default router;

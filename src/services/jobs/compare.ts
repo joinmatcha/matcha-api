@@ -4,6 +4,11 @@ import { BilanCompetence } from '@/models/BilanCompetence';
 import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { normalizeText } from '@/services/rome/utils';
+import {
+  WorkStyleCompatibility,
+  computeWorkStyleCompatibility,
+  getLatestWorkStyleResult,
+} from '@/services/workStyle/compute';
 import { mapSubdomainsToLabels } from '@/utils/bilanLabelMapper';
 import { HttpError } from '@/utils/httpError';
 
@@ -43,6 +48,7 @@ export interface ComparedJob {
   isExecutive: boolean | undefined;
   market: ReturnType<typeof formatMarketStats>;
   recommendedNextStep: string;
+  workStyleCompatibility: WorkStyleCompatibility | null;
 }
 
 export interface JobComparisonResult {
@@ -225,6 +231,7 @@ export async function compareJobsForUser(
   }
 
   const marketStats = await getLatestMarketStats(jobs.map((job) => job._id));
+  const workStyle = await getLatestWorkStyleResult(userId);
   const marketByJobId = new Map(
     marketStats.map((market) => [market.metierId.toString(), market])
   );
@@ -291,6 +298,7 @@ export async function compareJobsForUser(
       isRegulated: job.isRegulated,
       isExecutive: job.isExecutive,
       market,
+      workStyleCompatibility: computeWorkStyleCompatibility(workStyle, job),
       recommendedNextStep: buildRecommendedNextStep({
         skillsToDevelop,
         market,

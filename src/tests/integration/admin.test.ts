@@ -13,6 +13,8 @@ import { PersonalityVersion } from '@/models/PersonalityVersion';
 import { SupportRequest } from '@/models/SupportRequest';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
+import { WorkStyleQuestion } from '@/models/WorkStyleQuestion';
+import { WorkStyleVersion } from '@/models/WorkStyleVersion';
 
 const createAdmin = async () => {
   const password = 'StrongPassw0rd!';
@@ -269,6 +271,66 @@ describe('Admin routes', () => {
       });
       expect(updateRes.body.handledBy).toBe(admin._id.toString());
       expect(updateRes.body.handledAt).toBeTruthy();
+    });
+
+    it('should manage work style versions and questions', async () => {
+      const { admin, password } = await createAdmin();
+      const loginRes = await request(app).post('/api/admin/auth/login').send({
+        email: admin.email,
+        password,
+      });
+      const cookie = getAdminCookie(loginRes);
+
+      const versionRes = await request(app)
+        .post('/api/admin/work-style-versions')
+        .set('Cookie', cookie)
+        .send({
+          version: 1,
+          title: 'Style professionnel V1',
+          profiles: [
+            {
+              key: 'autonomous_structured',
+              title: 'Autonome structuré',
+              description: 'Description',
+              strengths: ['Autonomie'],
+              cautions: ['Attention'],
+              advice: ['Conseil'],
+              preferredAxes: ['autonomy', 'structure'],
+            },
+          ],
+        });
+
+      expect(versionRes.status).toBe(201);
+
+      const questionRes = await request(app)
+        .post('/api/admin/work-style-questions')
+        .set('Cookie', cookie)
+        .send({
+          version: 1,
+          code: 'AUT_1',
+          text: 'Je préfère organiser mon travail.',
+          dimension: 'autonomy',
+          polarity: 1,
+          order: 1,
+        });
+
+      expect(questionRes.status).toBe(201);
+
+      const activateRes = await request(app)
+        .post('/api/admin/work-style-versions/1/activate')
+        .set('Cookie', cookie);
+
+      expect(activateRes.status).toBe(200);
+      expect(activateRes.body.isActive).toBe(true);
+
+      const listRes = await request(app)
+        .get('/api/admin/work-style-questions?dimension=autonomy')
+        .set('Cookie', cookie);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.items).toHaveLength(1);
+      expect(await WorkStyleVersion.countDocuments()).toBe(1);
+      expect(await WorkStyleQuestion.countDocuments()).toBe(1);
     });
 
     it('should expose dashboard stats for the backoffice', async () => {

@@ -54,6 +54,7 @@ const UserSchema = new Schema(
     // Relations
     personalityTestId: { type: Types.ObjectId, ref: 'PersonalityTest' },
     skillsAssessmentId: { type: Types.ObjectId, ref: 'SkillsAssessment' },
+    workStyleResultId: { type: Types.ObjectId, ref: 'WorkStyleResult' },
 
     // Géolocalisation
     location: {

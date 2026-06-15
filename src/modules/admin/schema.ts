@@ -224,3 +224,84 @@ export const adminUpdateBilanQuestionSchema = baseBilanQuestionSchema
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field is required',
   });
+
+const workStyleDimensionSchema = z.enum([
+  'autonomy',
+  'collaboration',
+  'pace',
+  'structure',
+  'variety',
+  'human_contact',
+  'mobility',
+  'learning',
+]);
+
+const workStyleProfileSchema = z.object({
+  key: z.string().trim().min(1),
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  strengths: z.array(z.string().trim().min(1)).default([]),
+  cautions: z.array(z.string().trim().min(1)).default([]),
+  advice: z.array(z.string().trim().min(1)).default([]),
+  preferredAxes: z.array(workStyleDimensionSchema).default([]),
+});
+
+export const adminWorkStyleVersionListQuerySchema = paginationSchema.extend({
+  status: z.enum(['draft', 'active', 'archived']).optional(),
+  isActive: z.coerce.boolean().optional(),
+});
+
+export const adminWorkStyleVersionParamsSchema = z.object({
+  version: z.coerce.number().int().positive(),
+});
+
+export const adminCreateWorkStyleVersionSchema = z.object({
+  version: z.number().int().positive(),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().optional(),
+  status: z.enum(['draft', 'active', 'archived']).optional(),
+  isActive: z.boolean().optional(),
+  profiles: z.array(workStyleProfileSchema).optional(),
+});
+
+export const adminUpdateWorkStyleVersionSchema =
+  adminCreateWorkStyleVersionSchema
+    .omit({ version: true })
+    .partial()
+    .refine((data) => Object.keys(data).length > 0, {
+      message: 'At least one field is required',
+    });
+
+export const adminDuplicateWorkStyleVersionSchema = z.object({
+  version: z.number().int().positive(),
+  title: z.string().trim().min(1).optional(),
+  summary: z.string().trim().optional(),
+});
+
+export const adminWorkStyleQuestionListQuerySchema = paginationSchema.extend({
+  version: z.coerce.number().int().positive().optional(),
+  isActive: z.coerce.boolean().optional(),
+  dimension: workStyleDimensionSchema.optional(),
+});
+
+export const adminWorkStyleQuestionParamsSchema = z.object({
+  id: z.string().regex(objectIdRegex, 'Invalid work style question id'),
+});
+
+const baseWorkStyleQuestionSchema = z.object({
+  code: z.string().trim().min(1),
+  text: z.string().trim().min(1),
+  dimension: workStyleDimensionSchema,
+  polarity: z.union([z.literal(1), z.literal(-1)]).optional(),
+  order: z.number().int().min(0).optional(),
+  version: z.number().int().positive(),
+  isActive: z.boolean().optional(),
+});
+
+export const adminCreateWorkStyleQuestionSchema = baseWorkStyleQuestionSchema;
+
+export const adminUpdateWorkStyleQuestionSchema = baseWorkStyleQuestionSchema
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field is required',
+  });

@@ -20,6 +20,7 @@
     "cleanup:users": "ts-node src/scripts/cleanup-unverified-users.ts --once",
     "seed:personality": "ts-node -r tsconfig-paths/register src/scripts/seed-personality.ts",
     "seed:bilan": "ts-node -r tsconfig-paths/register src/scripts/seed-bilan.ts",
+    "seed:work-style": "ts-node -r tsconfig-paths/register src/scripts/seed-work-style.ts",
     "sync:rome": "ts-node -r tsconfig-paths/register src/scripts/sync-rome-jobs.ts",
     "sync:rome:cron": "ts-node -r tsconfig-paths/register src/scripts/sync-rome-jobs.ts --cron",
     "sync:market": "ts-node -r tsconfig-paths/register src/scripts/sync-market-stats.ts",
