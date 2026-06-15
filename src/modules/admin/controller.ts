@@ -203,7 +203,7 @@ export const adminLogin = async (
     res.cookie(env.ADMIN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
       maxAge: 24 * 60 * 60 * 1000,
     });
@@ -226,7 +226,7 @@ export const adminLogout = (_req: Request, res: Response): void => {
   res.clearCookie(env.ADMIN_COOKIE_NAME, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
   });
   res.status(200).json({ message: 'Logged out' });
