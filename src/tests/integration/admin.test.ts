@@ -141,7 +141,7 @@ describe('Admin routes', () => {
       const cookie = getAdminCookie(res)[0];
       expect(cookie).toContain('admin_token=');
       expect(cookie).toContain('HttpOnly');
-      expect(cookie).toContain('SameSite=Lax');
+      expect(cookie).toContain('SameSite=None');
     });
 
     it('should clear the admin cookie on logout', async () => {
