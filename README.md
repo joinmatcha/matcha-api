@@ -150,6 +150,7 @@ Ce mécanisme est défini dans `src/index.ts` et répliqué dans chaque script d
 | `chatsessions`         | Sessions de chat                                     |
 | `cvparsings`           | Résultats de parsing de CV                           |
 | `logfeedbacks`         | Logs de feedback utilisateur                         |
+| `analytics_events`     | Événements produit pseudonymisés pour Matcha Insights |
 
 ## Seeds
 
@@ -183,6 +184,7 @@ yarn sync:rome
 | ----------------------- | -------------------------------------------------------- |
 | `yarn seed:personality` | Peuple les templates de test de personnalité             |
 | `yarn seed:bilan`       | Peuple les questions et compétences de l'auto-évaluation |
+| `yarn seed:analytics`   | Génère des données réalistes pour Matcha Insights        |
 
 `yarn seed:bilan` utilise la version de seed par défaut. Pour choisir explicitement une version :
 
@@ -193,6 +195,17 @@ BILAN_VERSION=2 yarn seed:bilan
 ```
 
 Si une future V3 est ajoutée, elle devra être déclarée dans `src/seeds/bilanQuestionSets.ts` avec son jeu de questions dédié avant de pouvoir être seedée.
+
+Le seed analytics sert à alimenter le dashboard Matcha Insights sans dépendre
+du trafic réel :
+
+```bash
+yarn seed:analytics
+```
+
+Il génère des événements, utilisateurs de démonstration, résultats
+d'auto-évaluation et résultats Style professionnel marqués pour être
+reproductibles.
 
 ### Autres scripts utilitaires
 
@@ -205,6 +218,89 @@ Si une future V3 est ajoutée, elle devra être déclarée dans `src/seeds/bilan
 | `yarn sync:rome:cron`        | Lance le scheduler mensuel de synchronisation ROME            |
 | `yarn sync:market`           | Synchronise les statistiques Marché du travail par métier     |
 | `yarn remap:market`          | Recalcule les stats normalisées depuis le `raw` déjà importé  |
+
+## Matcha Insights / Analytics
+
+Matcha Insights est le module de pilotage produit du back-office. Il collecte
+des événements d'usage depuis l'application mobile, les stocke dans MongoDB puis
+expose des agrégations utilisées par le dashboard admin.
+
+### Règles de collecte
+
+- Les événements sont stockés dans `analytics_events`.
+- L'utilisateur est pseudonymisé côté API via un hash HMAC basé sur `JWT_SECRET`.
+- Le dashboard admin consomme uniquement des données agrégées.
+- Un échec d'envoi d'événement côté mobile ne doit jamais bloquer l'utilisateur.
+- Les analytics n'influencent pas encore le scoring métier.
+
+### Endpoint mobile
+
+```txt
+POST /api/analytics/events
+```
+
+Authentification : JWT utilisateur.
+
+Payload minimal :
+
+```json
+{
+  "eventType": "test_started",
+  "sessionId": "session-uuid",
+  "source": "mobile"
+}
+```
+
+Champs optionnels :
+
+```json
+{
+  "entityType": "personality",
+  "entityId": "personality-v1",
+  "stepId": "question-4",
+  "metadata": {
+    "totalQuestions": 24
+  },
+  "occurredAt": "2026-06-18T10:30:00.000Z",
+  "appVersion": "1.0.0"
+}
+```
+
+Types d'événements supportés :
+
+| Type | Usage |
+| --- | --- |
+| `test_started` | Démarrage d'un test |
+| `test_step_completed` | Question ou étape complétée |
+| `test_completed` | Résultat généré |
+| `test_abandoned` | Sortie avant résultat |
+| `job_matched` | Métier proposé dans un résultat |
+| `job_viewed` | Fiche métier ouverte |
+| `job_swiped` | Like/dislike métier |
+| `feedback_submitted` | Retour utilisateur |
+
+### Endpoints back-office
+
+Les endpoints admin sont protégés par l'authentification admin existante :
+
+```txt
+GET /api/admin/insights/overview
+GET /api/admin/insights/activity
+GET /api/admin/insights/tests
+GET /api/admin/insights/jobs
+GET /api/admin/insights/orientation
+```
+
+Filtres communs :
+
+| Query | Description |
+| --- | --- |
+| `from` | Date ISO de début |
+| `to` | Date ISO de fin |
+| `limit` | Limite des tops retournés, bornée côté API |
+
+Ces endpoints alimentent les KPI, graphes, taux d'abandon, tops métiers,
+domaines et signaux d'orientation du dashboard Matcha Insights.
 
 ## Synchronisation ROME
 
@@ -444,6 +540,7 @@ Le déploiement se déclenche automatiquement à chaque push sur la branche `mvp
 | `yarn test:coverage`         | Exécute les tests avec rapport de couverture              |
 | `yarn seed:personality`      | Peuple les templates de personnalité                      |
 | `yarn seed:bilan`            | Peuple les données de l'auto-évaluation                   |
+| `yarn seed:analytics`        | Génère un jeu de données pour Matcha Insights             |
 | `yarn admin:promote <email>` | Promeut un utilisateur en admin                           |
 | `yarn reset:swipes`          | Supprime tous les swipes                                  |
 | `yarn cleanup:users`         | Supprime les utilisateurs non vérifiés expirés            |

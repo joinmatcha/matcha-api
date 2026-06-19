@@ -72,6 +72,12 @@ export const adminRomeSyncRunListQuerySchema = paginationSchema.omit({
   q: true,
 });
 
+export const adminInsightsQuerySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 const personalityOptionSchema = z.object({
   value: z.number(),
   label: z.string().trim().min(1),

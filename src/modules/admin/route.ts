@@ -40,6 +40,13 @@ import {
   updateWorkStyleVersionAdmin,
 } from '@/modules/admin/controller';
 import {
+  getInsightsActivityAdmin,
+  getInsightsJobsAdmin,
+  getInsightsOrientationAdmin,
+  getInsightsOverviewAdmin,
+  getInsightsTestsAdmin,
+} from '@/modules/admin/insights.controller';
+import {
   getRomeStatusAdmin,
   getRomeSyncRunAdmin,
   listRomeSyncRunsAdmin,
@@ -59,6 +66,7 @@ import {
   adminDuplicateBilanVersionSchema,
   adminDuplicateTemplateSchema,
   adminDuplicateWorkStyleVersionSchema,
+  adminInsightsQuerySchema,
   adminLoginSchema,
   adminRomeSyncRunListQuerySchema,
   adminRomeSyncRunParamsSchema,
@@ -108,6 +116,32 @@ router.patch(
 );
 
 router.get('/stats', getStatsAdmin);
+
+router.get(
+  '/insights/overview',
+  validate(adminInsightsQuerySchema, 'query'),
+  getInsightsOverviewAdmin
+);
+router.get(
+  '/insights/activity',
+  validate(adminInsightsQuerySchema, 'query'),
+  getInsightsActivityAdmin
+);
+router.get(
+  '/insights/tests',
+  validate(adminInsightsQuerySchema, 'query'),
+  getInsightsTestsAdmin
+);
+router.get(
+  '/insights/jobs',
+  validate(adminInsightsQuerySchema, 'query'),
+  getInsightsJobsAdmin
+);
+router.get(
+  '/insights/orientation',
+  validate(adminInsightsQuerySchema, 'query'),
+  getInsightsOrientationAdmin
+);
 
 router.get(
   '/support-requests',
