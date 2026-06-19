@@ -1258,4 +1258,219 @@ export const swaggerDocs = {
  *         description: Code déjà utilisé
  */
 `,
+
+  // ==================== ANALYTICS / MATCHA INSIGHTS ====================
+  analyticsCreateEvent: `
+/**
+ * @swagger
+ * /api/analytics/events:
+ *   post:
+ *     summary: Collecter un événement produit Matcha Insights
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - eventType
+ *               - sessionId
+ *               - source
+ *             properties:
+ *               eventType:
+ *                 type: string
+ *                 enum:
+ *                   - test_started
+ *                   - test_step_completed
+ *                   - test_completed
+ *                   - test_abandoned
+ *                   - job_matched
+ *                   - job_viewed
+ *                   - job_swiped
+ *                   - feedback_submitted
+ *                 example: test_started
+ *               sessionId:
+ *                 type: string
+ *                 example: session-uuid
+ *               source:
+ *                 type: string
+ *                 enum: [mobile]
+ *                 example: mobile
+ *               entityType:
+ *                 type: string
+ *                 enum: [personality, bilan, work_style, job, feedback]
+ *                 example: personality
+ *               entityId:
+ *                 type: string
+ *                 example: personality-v1
+ *               stepId:
+ *                 type: string
+ *                 example: question-4
+ *               metadata:
+ *                 type: object
+ *                 additionalProperties: true
+ *                 example:
+ *                   totalQuestions: 24
+ *               occurredAt:
+ *                 type: string
+ *                 format: date-time
+ *               appVersion:
+ *                 type: string
+ *                 example: 1.0.0
+ *     responses:
+ *       201:
+ *         description: Événement collecté
+ *       400:
+ *         description: Payload invalide
+ *       401:
+ *         description: Utilisateur non authentifié
+ */
+`,
+
+  adminInsightsOverview: `
+/**
+ * @swagger
+ * /api/admin/insights/overview:
+ *   get:
+ *     summary: Lire les KPI Matcha Insights
+ *     tags: [Admin, Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: KPI agrégés du dashboard Insights
+ *       401:
+ *         description: Admin non authentifié
+ */
+`,
+
+  adminInsightsActivity: `
+/**
+ * @swagger
+ * /api/admin/insights/activity:
+ *   get:
+ *     summary: Lire l'activité quotidienne Matcha Insights
+ *     tags: [Admin, Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *     responses:
+ *       200:
+ *         description: Série quotidienne des événements, utilisateurs actifs et tests terminés
+ */
+`,
+
+  adminInsightsTests: `
+/**
+ * @swagger
+ * /api/admin/insights/tests:
+ *   get:
+ *     summary: Lire les taux de completion et d'abandon par test
+ *     tags: [Admin, Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *     responses:
+ *       200:
+ *         description: Métriques par test avec étape d'abandon principale
+ */
+`,
+
+  adminInsightsJobs: `
+/**
+ * @swagger
+ * /api/admin/insights/jobs:
+ *   get:
+ *     summary: Lire les métriques métiers Matcha Insights
+ *     tags: [Admin, Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Tops métiers, domaines et écart recommandation/intérêt
+ */
+`,
+
+  adminInsightsOrientation: `
+/**
+ * @swagger
+ * /api/admin/insights/orientation:
+ *   get:
+ *     summary: Lire les signaux d'orientation Matcha Insights
+ *     tags: [Admin, Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Compétences, valeurs, conditions et profils Style professionnel agrégés
+ */
+`,
 };
