@@ -12,6 +12,7 @@ import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
 import { compareJobsForUser } from '@/services/jobs/compare';
+import { getTopLikedJobsForUser } from '@/services/jobs/topLiked';
 import {
   computeWorkStyleCompatibility,
   getLatestWorkStyleResult,
@@ -410,54 +411,10 @@ export const getTopLikedJobs = async (
       ? Math.max(1, Math.min(limitParam, 10))
       : 3;
 
-    const jobs = await Swipe.aggregate([
-      {
-        $match: {
-          userId: new Types.ObjectId(req.user.id),
-          action: 'like',
-        },
-      },
-      {
-        $group: {
-          _id: '$jobId',
-          likesCount: { $sum: 1 },
-          lastLikedAt: { $max: '$swipedAt' },
-        },
-      },
-      { $sort: { likesCount: -1, lastLikedAt: -1 } },
-      { $limit: limit },
-      {
-        $lookup: {
-          from: 'romemetiers',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'job',
-        },
-      },
-      { $unwind: '$job' },
-      { $match: { 'job.isActive': true } },
-      {
-        $project: {
-          _id: '$job._id',
-          code: '$job.code',
-          label: '$job.label',
-          definition: '$job.definition',
-          domain: '$job.domain',
-          themes: '$job.themes',
-          sectors: '$job.sectors',
-          riasec: '$job.riasec',
-          likesCount: 1,
-          lastLikedAt: 1,
-        },
-      },
-    ]);
+    const jobs = await getTopLikedJobsForUser(req.user.id, limit);
 
     return res.status(200).json({
-      jobs: jobs.map((job) => ({
-        ...formatRomeJobSummary(job),
-        likesCount: job.likesCount,
-        lastLikedAt: job.lastLikedAt,
-      })),
+      jobs,
     });
   } catch (error) {
     next(error);
