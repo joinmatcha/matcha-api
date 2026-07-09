@@ -135,21 +135,21 @@ Ce mécanisme est défini dans `src/index.ts` et répliqué dans chaque script d
 
 ### Collections
 
-| Collection             | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `users`                | Comptes utilisateurs                                 |
-| `jobs`                 | Catalogue des métiers                                |
-| `personalitytemplates` | Templates de test de personnalité                    |
-| `personalitytests`     | Résultats des tests de personnalité                  |
-| `bilanquestions`       | Questions de l'auto-évaluation professionnelle       |
-| `bilancompetences`     | Référentiel de compétences                           |
-| `bilananswersets`      | Réponses aux auto-évaluations professionnelles       |
-| `skillsassessments`    | Évaluations de compétences                           |
-| `recommendations`      | Recommandations de métiers                           |
-| `swipes`               | Historique des swipes (like/dislike sur les métiers) |
-| `chatsessions`         | Sessions de chat                                     |
-| `cvparsings`           | Résultats de parsing de CV                           |
-| `logfeedbacks`         | Logs de feedback utilisateur                         |
+| Collection             | Description                                           |
+| ---------------------- | ----------------------------------------------------- |
+| `users`                | Comptes utilisateurs                                  |
+| `jobs`                 | Catalogue des métiers                                 |
+| `personalitytemplates` | Templates de test de personnalité                     |
+| `personalitytests`     | Résultats des tests de personnalité                   |
+| `bilanquestions`       | Questions de l'auto-évaluation professionnelle        |
+| `bilancompetences`     | Référentiel de compétences                            |
+| `bilananswersets`      | Réponses aux auto-évaluations professionnelles        |
+| `skillsassessments`    | Évaluations de compétences                            |
+| `recommendations`      | Recommandations de métiers                            |
+| `swipes`               | Historique des swipes (like/dislike sur les métiers)  |
+| `chatsessions`         | Sessions de chat                                      |
+| `cvparsings`           | Résultats de parsing de CV                            |
+| `logfeedbacks`         | Logs de feedback utilisateur                          |
 | `analytics_events`     | Événements produit pseudonymisés pour Matcha Insights |
 
 ## Seeds
@@ -268,16 +268,16 @@ Champs optionnels :
 
 Types d'événements supportés :
 
-| Type | Usage |
-| --- | --- |
-| `test_started` | Démarrage d'un test |
-| `test_step_completed` | Question ou étape complétée |
-| `test_completed` | Résultat généré |
-| `test_abandoned` | Sortie avant résultat |
-| `job_matched` | Métier proposé dans un résultat |
-| `job_viewed` | Fiche métier ouverte |
-| `job_swiped` | Like/dislike métier |
-| `feedback_submitted` | Retour utilisateur |
+| Type                  | Usage                           |
+| --------------------- | ------------------------------- |
+| `test_started`        | Démarrage d'un test             |
+| `test_step_completed` | Question ou étape complétée     |
+| `test_completed`      | Résultat généré                 |
+| `test_abandoned`      | Sortie avant résultat           |
+| `job_matched`         | Métier proposé dans un résultat |
+| `job_viewed`          | Fiche métier ouverte            |
+| `job_swiped`          | Like/dislike métier             |
+| `feedback_submitted`  | Retour utilisateur              |
 
 ### Endpoints back-office
 
@@ -293,10 +293,10 @@ GET /api/admin/insights/orientation
 
 Filtres communs :
 
-| Query | Description |
-| --- | --- |
-| `from` | Date ISO de début |
-| `to` | Date ISO de fin |
+| Query   | Description                                |
+| ------- | ------------------------------------------ |
+| `from`  | Date ISO de début                          |
+| `to`    | Date ISO de fin                            |
 | `limit` | Limite des tops retournés, bornée côté API |
 
 Ces endpoints alimentent les KPI, graphes, taux d'abandon, tops métiers,
@@ -489,6 +489,33 @@ Ce calcul est solide pour un MVP parce qu'il est :
 - **prudent** : les signaux faibles sont filtrés avec un seuil minimum.
 
 Il ne doit pas être considéré comme une validation scientifique du projet professionnel. Pour améliorer encore la pertinence, les prochaines étapes seraient de calibrer les poids avec des retours utilisateurs, d'ajouter des exclusions fortes, de mieux pondérer les compétences principales ROME et d'intégrer progressivement les contraintes réelles de reconversion.
+
+## Profil Matcha
+
+La page mobile "Profil Matcha" est alimentée par un endpoint dédié :
+
+```http
+GET /api/matcha-profile/me
+```
+
+Cet endpoint évite au mobile de reconstruire une synthèse en appelant séparément
+le profil utilisateur, l'auto-évaluation, le test de personnalité, le style
+professionnel et les métiers likés. Le backend centralise le croisement des
+signaux et renvoie un contrat directement affichable.
+
+La réponse contient :
+
+- la complétion du profil utilisateur ;
+- le profil principal et son résumé ;
+- le statut des trois tests utilisés par Matcha ;
+- les signaux forts croisés entre tests et métiers likés ;
+- les dimensions clés : forces, valeurs, environnements et secteurs ;
+- les métiers recommandés et les métiers favoris ;
+- la prochaine action la plus pertinente pour l'utilisateur.
+
+La logique reste volontairement déterministe : elle ne modifie pas le ranking
+métier existant, elle regroupe seulement les signaux déjà disponibles pour
+donner une lecture plus claire du profil utilisateur.
 
 ## Build et déploiement
 

@@ -1,6 +1,7 @@
 import nodemailer, { SentMessageInfo, Transporter } from 'nodemailer';
 
 import { env } from '@/config/env';
+import { logger } from '@/utils/logger';
 
 const isProduction = env.NODE_ENV === 'production';
 const APP_NAME = env.APP_NAME;
@@ -55,7 +56,9 @@ const getTransporter = async (): Promise<Transporter> => {
 
 const logPreviewUrl = (info: SentMessageInfo): void => {
   if (!isProduction) {
-    console.log('📨 Preview URL:', nodemailer.getTestMessageUrl(info));
+    logger.info('email_preview_url', {
+      previewUrl: nodemailer.getTestMessageUrl(info),
+    });
   }
 };
 

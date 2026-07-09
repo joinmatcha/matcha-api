@@ -1,13 +1,8 @@
-import dotenv from 'dotenv';
-
-dotenv.config({
-  path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env',
-});
-
 import app from '@/app';
 import { connectDB } from '@/config/db';
 import { env } from '@/config/env';
 import { ensureInitialAdmin } from '@/services/admin/bootstrap';
+import { logger } from '@/utils/logger';
 
 const PORT = env.PORT;
 
@@ -16,23 +11,23 @@ const PORT = env.PORT;
     await connectDB();
     await ensureInitialAdmin();
     const server = app.listen(PORT, () => {
-      console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
+      logger.info('server_started', { port: PORT });
     });
 
     process.on('SIGINT', () => {
-      console.log('\n🛑 Fermeture du serveur...');
+      logger.info('server_shutdown_started');
       server.close(() => {
-        console.log('✅ Serveur arrêté proprement');
+        logger.info('server_shutdown_completed');
         process.exit(0);
       });
     });
 
     process.on('unhandledRejection', (err) => {
-      console.error('💥 Rejet non géré :', err);
+      logger.error('unhandled_rejection', { error: err });
       process.exit(1);
     });
   } catch (err) {
-    console.error('❌ Impossible de démarrer le serveur :', err);
+    logger.error('server_start_failed', { error: err });
     process.exit(1);
   }
 })();

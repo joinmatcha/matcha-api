@@ -7,6 +7,7 @@ import { env } from '@/config/env';
 import User from '@/models/User';
 import { sendResetPasswordEmail } from '@/services/notifications/email';
 import { RequestPasswordResetInput, ResetPasswordInput } from '@/types/user';
+import { logger } from '@/utils/logger';
 
 interface LoginRequest {
   email: string;
@@ -94,7 +95,7 @@ export const requestPasswordReset = async (
       message: 'If this email exists, a reset link has been sent.',
     });
   } catch (error) {
-    console.error('Error in requestPasswordReset:', error);
+    logger.error('password_reset_request_failed', { error });
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -129,7 +130,7 @@ export const resetPassword = async (
 
     res.status(200).json({ message: 'Password successfully reset' });
   } catch (error) {
-    console.error('Error in resetPassword:', error);
+    logger.error('password_reset_failed', { error });
     res.status(500).json({ message: 'Internal server error' });
   }
 };

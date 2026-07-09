@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 
 import { env } from '@/config/env';
 import User from '@/models/User';
+import { logger } from '@/utils/logger';
 
 export const ensureInitialAdmin = async (): Promise<void> => {
   const email = env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
@@ -12,9 +13,7 @@ export const ensureInitialAdmin = async (): Promise<void> => {
   }
 
   if (!password) {
-    console.warn(
-      'INITIAL_ADMIN_EMAIL is set but INITIAL_ADMIN_PASSWORD is missing, skipping initial admin bootstrap'
-    );
+    logger.warn('admin_bootstrap_skipped_missing_password', { email });
     return;
   }
 
@@ -33,7 +32,7 @@ export const ensureInitialAdmin = async (): Promise<void> => {
       role: 'admin',
     });
 
-    console.log(`✅ Initial admin created: ${email}`);
+    logger.info('admin_bootstrap_created', { email });
     return;
   }
 
@@ -66,6 +65,6 @@ export const ensureInitialAdmin = async (): Promise<void> => {
 
   if (hasChanges) {
     await existingUser.save();
-    console.log(`✅ Initial admin ensured: ${email}`);
+    logger.info('admin_bootstrap_updated', { email });
   }
 };

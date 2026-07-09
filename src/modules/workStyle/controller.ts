@@ -5,6 +5,7 @@ import {
   getActiveWorkStyleVersion,
   getLatestWorkStyleResult,
   getWorkStyleHistory,
+  resetUserWorkStyle,
 } from '@/services/workStyle/compute';
 import { HttpError } from '@/utils/httpError';
 
@@ -69,6 +70,23 @@ export const submitWorkStyle = async (
       success: true,
       result,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetWorkStyle = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new HttpError(401, 'Unauthorized');
+
+    await resetUserWorkStyle(userId);
+
+    return res.status(200).json({ message: 'Work style test reset' });
   } catch (error) {
     next(error);
   }

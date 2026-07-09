@@ -292,6 +292,134 @@ describe('Analytics routes', () => {
       });
     });
 
+    it('should filter insights by user email', async () => {
+      const { user: targetUser, token: targetToken } =
+        await createUserToken('user');
+      const { user: otherUser, token: otherToken } =
+        await createUserToken('user');
+      const adminToken = await createAdminToken();
+
+      await request(app)
+        .post('/api/analytics/events')
+        .set('Authorization', `Bearer ${targetToken}`)
+        .send({
+          eventType: 'test_started',
+          sessionId: 'session-target',
+          source: 'mobile',
+          entityType: 'bilan',
+          entityId: 'bilan-v2',
+        });
+
+      await request(app)
+        .post('/api/analytics/events')
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({
+          eventType: 'test_started',
+          sessionId: 'session-other',
+          source: 'mobile',
+          entityType: 'work_style',
+          entityId: 'work-style-v1',
+        });
+
+      const baseBilan = {
+        version: 2,
+        rawAnswers: [],
+        scores: {
+          competence: {},
+          soft_skill: {},
+          value: {},
+          work_condition: {},
+          interest: {},
+          feasibility: {},
+        },
+        investigation: {
+          competence: {
+            strengths: [],
+            acquired: [],
+            toImprove: [],
+          },
+          softSkills: {
+            strengths: [],
+            acquired: [],
+            toImprove: [],
+          },
+          topValues: [],
+          topWorkConditions: [],
+          interestsProfile: [],
+          feasibilityProfile: [],
+        },
+        conclusion: {
+          archetype: {
+            id: 'seed',
+            title: 'Seed',
+            subtitle: 'Seed',
+            description: 'Seed',
+          },
+          profileSummary: 'Seed',
+          keyStrengths: [],
+          improvementAxes: [],
+          recommendedEnvironments: [],
+          recommendedJobs: [],
+          actionPlan: [],
+        },
+      };
+
+      await BilanCompetence.create([
+        {
+          ...baseBilan,
+          user: targetUser._id,
+          investigation: {
+            ...baseBilan.investigation,
+            competence: {
+              ...baseBilan.investigation.competence,
+              strengths: ['communication'],
+            },
+          },
+        },
+        {
+          ...baseBilan,
+          user: otherUser._id,
+          investigation: {
+            ...baseBilan.investigation,
+            competence: {
+              ...baseBilan.investigation.competence,
+              strengths: ['planning'],
+            },
+          },
+        },
+      ]);
+
+      const overviewRes = await request(app)
+        .get('/api/admin/insights/overview')
+        .query({ userEmail: targetUser.email.toUpperCase() })
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(overviewRes.status).toBe(200);
+      expect(overviewRes.body).toMatchObject({
+        totalEvents: 1,
+        activeUsers: 1,
+        testsStarted: 1,
+      });
+
+      const orientationRes = await request(app)
+        .get('/api/admin/insights/orientation')
+        .query({ userEmail: targetUser.email })
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(orientationRes.status).toBe(200);
+      expect(orientationRes.body.competenceStrengths).toEqual([
+        { key: 'communication', count: 1 },
+      ]);
+
+      const emptyRes = await request(app)
+        .get('/api/admin/insights/overview')
+        .query({ userEmail: 'missing@example.com' })
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(emptyRes.status).toBe(200);
+      expect(emptyRes.body.totalEvents).toBe(0);
+    });
+
     it('should expose activity and test funnel metrics with date filters', async () => {
       const adminToken = await createAdminToken();
       const insideDate = new Date('2026-06-18T10:00:00.000Z');

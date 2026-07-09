@@ -112,4 +112,41 @@ describe('Work style API', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('resets the previous result before retaking the test', async () => {
+    const { user, token } = await createUserAndToken();
+    await createActiveWorkStyle();
+
+    const submitRes = await request(app)
+      .post('/api/work-style/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        answers: [
+          { questionId: 'AUT_1', value: 5 },
+          { questionId: 'STR_1', value: 5 },
+        ],
+      });
+
+    expect(submitRes.status).toBe(201);
+
+    const resetRes = await request(app)
+      .post('/api/work-style/reset')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(resetRes.status).toBe(200);
+    await expect(
+      WorkStyleResult.findOne({ user: user._id })
+    ).resolves.toBeNull();
+
+    const updatedUser = await User.findById(user._id).lean();
+    expect(updatedUser?.workStyleResultId).toBeUndefined();
+
+    const meRes = await request(app)
+      .get('/api/work-style/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(meRes.status).toBe(200);
+    expect(meRes.body.latestResult).toBeNull();
+    expect(meRes.body.history).toHaveLength(0);
+  });
 });
