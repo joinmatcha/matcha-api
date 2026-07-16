@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 import { env } from '@/config/env';
+import { logger } from '@/utils/logger';
 
 const dbName = env.NODE_ENV === 'test' ? env.MONGODB_DB_TEST : env.MONGODB_DB;
 
@@ -14,14 +15,14 @@ export const connectDB = async (): Promise<void> => {
   try {
     mongoose.set('strictQuery', true);
     await mongoose.connect(uri);
-    console.log(`✅ MongoDB connecté à "${dbName}"`);
+    logger.info('mongodb_connected', { dbName });
   } catch (error) {
-    console.error('❌ Erreur de connexion MongoDB :', error);
+    logger.error('mongodb_connection_failed', { dbName, error });
     process.exit(1);
   }
 };
 
 export const disconnectDB = async (): Promise<void> => {
   await mongoose.connection.close();
-  console.log('🛑 Deconnexion MongoDB');
+  logger.info('mongodb_disconnected', { dbName });
 };

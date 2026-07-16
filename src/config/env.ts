@@ -1,10 +1,21 @@
+import dotenv from 'dotenv';
 import { z } from 'zod';
+
+dotenv.config({ path: '.env' });
+
+if (process.env.NODE_ENV) {
+  dotenv.config({
+    path: `.env.${process.env.NODE_ENV}`,
+    override: true,
+  });
+}
 
 const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).optional(),
 
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
 

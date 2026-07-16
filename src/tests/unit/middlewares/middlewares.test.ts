@@ -60,13 +60,9 @@ describe('Middlewares', () => {
       };
       const res = createResponse();
       const next = jest.fn();
-      const errorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
 
       requireAuth(req, res, next);
 
-      expect(errorSpy).toHaveBeenCalled();
       expect(next).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({

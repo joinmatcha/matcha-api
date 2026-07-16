@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { env } from '@/config/env';
+import { logger } from '@/utils/logger';
 
 interface JwtPayload {
   id: string;
@@ -29,7 +30,11 @@ export const requireAuth = (
     req.user = payload;
     next();
   } catch (err) {
-    console.error('❌ Invalid token:', err);
+    logger.warn('auth_invalid_token', {
+      requestId: req.requestId,
+      path: (req.originalUrl ?? req.url ?? req.path ?? '').split('?')[0],
+      error: err,
+    });
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

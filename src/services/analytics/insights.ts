@@ -1,4 +1,4 @@
-import { FilterQuery } from 'mongoose';
+import { FilterQuery, Types } from 'mongoose';
 
 import {
   AnalyticsEvent,
@@ -11,6 +11,8 @@ export type InsightsDateRange = {
   from?: Date;
   to?: Date;
   limit?: number;
+  userHash?: string;
+  userId?: Types.ObjectId;
 };
 
 const DEFAULT_LIMIT = 10;
@@ -25,9 +27,11 @@ function eventDateMatch(range: InsightsDateRange = {}) {
   if (range.from) receivedAt.$gte = range.from;
   if (range.to) receivedAt.$lte = range.to;
 
-  return Object.keys(receivedAt).length
-    ? ({ receivedAt } as FilterQuery<AnalyticsEventDocument>)
-    : {};
+  const match: FilterQuery<AnalyticsEventDocument> = {};
+  if (Object.keys(receivedAt).length) match.receivedAt = receivedAt;
+  if (range.userHash) match.userHash = range.userHash;
+
+  return match;
 }
 
 function createdAtMatch(range: InsightsDateRange = {}) {
@@ -35,6 +39,13 @@ function createdAtMatch(range: InsightsDateRange = {}) {
   if (range.from) createdAt.$gte = range.from;
   if (range.to) createdAt.$lte = range.to;
   return Object.keys(createdAt).length ? { createdAt } : {};
+}
+
+function resultCreatedAtMatch(range: InsightsDateRange = {}) {
+  const match: Record<string, unknown> = createdAtMatch(range);
+  if (range.userId) match.user = range.userId;
+  if (range.userHash && !range.userId) match.user = new Types.ObjectId();
+  return match;
 }
 
 function percentage(part: number, total: number) {
@@ -304,7 +315,7 @@ async function topArrayValues(
   limit: number
 ) {
   return collection.aggregate([
-    { $match: createdAtMatch(range) },
+    { $match: resultCreatedAtMatch(range) },
     { $unwind: `$${path}` },
     {
       $group: {
@@ -357,7 +368,7 @@ export async function getInsightsOrientation(range: InsightsDateRange = {}) {
     ),
     topArrayValues(WorkStyleResult, 'topAxes', range, limit),
     WorkStyleResult.aggregate([
-      { $match: createdAtMatch(range) },
+      { $match: resultCreatedAtMatch(range) },
       {
         $group: {
           _id: '$profile.key',

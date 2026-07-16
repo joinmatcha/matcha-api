@@ -262,6 +262,13 @@ export async function getWorkStyleHistory(userId: string) {
   return results.map(serializeWorkStyleResult);
 }
 
+export async function resetUserWorkStyle(userId: string) {
+  await Promise.all([
+    WorkStyleResult.deleteMany({ user: userId }),
+    User.findByIdAndUpdate(userId, { $unset: { workStyleResultId: 1 } }),
+  ]);
+}
+
 export function computeWorkStyleCompatibility(
   workStyle: Awaited<ReturnType<typeof getLatestWorkStyleResult>>,
   job: {
