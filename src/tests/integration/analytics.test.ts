@@ -5,6 +5,7 @@ import request from 'supertest';
 import app from '@/app';
 import { AnalyticsEvent } from '@/models/AnalyticsEvent';
 import { BilanCompetence } from '@/models/BilanCompetence';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import User from '@/models/User';
 import { WorkStyleResult } from '@/models/WorkStyleResult';
 
@@ -36,6 +37,7 @@ describe('Analytics routes', () => {
   beforeEach(async () => {
     await AnalyticsEvent.deleteMany({});
     await BilanCompetence.deleteMany({});
+    await RecommendationProfile.deleteMany({});
     await WorkStyleResult.deleteMany({});
     await User.deleteMany({});
   });
@@ -221,8 +223,7 @@ describe('Analytics routes', () => {
           profileSummary: 'Seed',
           keyStrengths: [],
           improvementAxes: [],
-          recommendedEnvironments: [],
-          recommendedJobs: [],
+          recommendedSectors: [],
           actionPlan: [],
         },
       });
@@ -358,8 +359,7 @@ describe('Analytics routes', () => {
           profileSummary: 'Seed',
           keyStrengths: [],
           improvementAxes: [],
-          recommendedEnvironments: [],
-          recommendedJobs: [],
+          recommendedSectors: [],
           actionPlan: [],
         },
       };
@@ -516,39 +516,52 @@ describe('Analytics routes', () => {
       ]);
     });
 
-    it('should expose job rankings, domains, dislikes and recommendation gaps', async () => {
+    it('should expose job rankings, domains, dislikes and match interest gaps', async () => {
       const adminToken = await createAdminToken();
       const receivedAt = new Date('2026-06-18T12:00:00.000Z');
 
+      await RecommendationProfile.create([
+        {
+          user: new mongoose.Types.ObjectId(),
+          completedSources: ['bilan', 'personality', 'work_style'],
+          missingSources: [],
+          unlocked: true,
+          matchedJobs: [
+            {
+              jobId: new mongoose.Types.ObjectId(),
+              code: 'K1801',
+              title: 'Conseiller insertion',
+              sector: 'Action sociale',
+              score: 91,
+              reasons: ['Profil consolidé compatible'],
+            },
+          ],
+          recalculatedAt: receivedAt,
+          createdAt: receivedAt,
+          updatedAt: receivedAt,
+        },
+        {
+          user: new mongoose.Types.ObjectId(),
+          completedSources: ['bilan', 'personality', 'work_style'],
+          missingSources: [],
+          unlocked: true,
+          matchedJobs: [
+            {
+              jobId: new mongoose.Types.ObjectId(),
+              code: 'M1805',
+              title: 'Développeur web',
+              sector: 'Informatique',
+              score: 87,
+              reasons: ['Profil consolidé compatible'],
+            },
+          ],
+          recalculatedAt: receivedAt,
+          createdAt: receivedAt,
+          updatedAt: receivedAt,
+        },
+      ]);
+
       await AnalyticsEvent.create([
-        {
-          eventType: 'job_matched',
-          userHash: 'user-a',
-          sessionId: 'session-jobs-a',
-          source: 'mobile',
-          entityType: 'job',
-          entityId: 'K1801',
-          metadata: {
-            jobTitle: 'Conseiller insertion',
-            domain: 'Action sociale',
-          },
-          occurredAt: receivedAt,
-          receivedAt,
-        },
-        {
-          eventType: 'job_matched',
-          userHash: 'user-b',
-          sessionId: 'session-jobs-b',
-          source: 'mobile',
-          entityType: 'job',
-          entityId: 'M1805',
-          metadata: {
-            jobTitle: 'Développeur web',
-            domain: 'Informatique',
-          },
-          occurredAt: receivedAt,
-          receivedAt,
-        },
         {
           eventType: 'job_viewed',
           userHash: 'user-a',
@@ -649,7 +662,7 @@ describe('Analytics routes', () => {
         domain: 'Action sociale',
         count: 1,
       });
-      expect(jobsRes.body.recommendationInterestGap).toEqual([
+      expect(jobsRes.body.matchInterestGap).toEqual([
         expect.objectContaining({
           jobId: 'M1805',
           title: 'Développeur web',

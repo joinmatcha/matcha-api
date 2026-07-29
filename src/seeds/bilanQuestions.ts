@@ -5,47 +5,6 @@ export const bilanQuestionSeedVersion = 2;
 const version = bilanQuestionSeedVersion;
 
 export const bilanQuestions: Partial<BilanQuestionDocument>[] = [
-  {
-    code: 'EXP1',
-    domain: 'experience',
-    subdomain: 'last_role',
-    question:
-      'Décris ton dernier poste ou activité principale : quelles étaient tes missions principales ?',
-    type: 'open_text',
-    version,
-    isActive: true,
-  },
-  {
-    code: 'EXP2',
-    domain: 'experience',
-    subdomain: 'achievement',
-    question:
-      'Parle d’une expérience dont tu es particulièrement fier·e : qu’as-tu réalisé concrètement ?',
-    type: 'open_text',
-    version,
-    isActive: true,
-  },
-  {
-    code: 'EXP3',
-    domain: 'experience',
-    subdomain: 'difficulty',
-    question:
-      'Quelle situation professionnelle difficile as-tu déjà gérée, et qu’est-ce que cela montre de ta façon de travailler ?',
-    type: 'open_text',
-    version,
-    isActive: true,
-  },
-  {
-    code: 'EXP4',
-    domain: 'experience',
-    subdomain: 'trajectory',
-    question:
-      'Dans ton parcours, quels types d’activités ou de contextes reviennent souvent et te correspondent le plus ?',
-    type: 'open_text',
-    version,
-    isActive: true,
-  },
-
   // Compétences transférables, 2 questions par axe.
   {
     code: 'C1',

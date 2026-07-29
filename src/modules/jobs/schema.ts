@@ -14,6 +14,11 @@ export const swipeJobSchema = z.object({
   action: z.enum(['like', 'dislike']),
 });
 
+export const matchingDecisionSchema = z.object({
+  jobId: z.string().regex(objectIdRegex, 'jobId invalide'),
+  action: z.enum(['like', 'dislike']),
+});
+
 export const topLikedJobsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(10).optional(),
 });

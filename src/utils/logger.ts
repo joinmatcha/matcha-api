@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
 type LogContext = Record<string, unknown>;
@@ -103,4 +105,26 @@ export const logger = {
     write('warn', message, context),
   error: (message: string, context?: LogContext) =>
     write('error', message, context),
+  startup: ({
+    name,
+    port,
+    url,
+  }: {
+    name: string;
+    port: number;
+    url: string;
+  }) => {
+    if (!shouldLog('info')) return;
+
+    if (process.env.NODE_ENV === 'production') {
+      write('info', 'server_started', { name, port, url });
+      return;
+    }
+
+    console.log('');
+    console.log(`✅ ${name} is running`);
+    console.log(`   Local: ${url}`);
+    console.log(`   Port:  ${port}`);
+    console.log('');
+  },
 };

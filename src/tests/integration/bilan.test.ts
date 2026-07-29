@@ -216,7 +216,7 @@ describe('Bilan API', () => {
       expect(res.body.bilan.conclusion.archetype).toBeDefined();
       expect(res.body.bilan.conclusion.archetype.title).toBeDefined();
 
-      expect(Array.isArray(res.body.bilan.conclusion.recommendedJobs)).toBe(
+      expect(Array.isArray(res.body.bilan.conclusion.recommendedSectors)).toBe(
         true
       );
 
@@ -277,8 +277,7 @@ describe('Bilan API', () => {
           profileSummary: 'Résumé test',
           keyStrengths: [],
           improvementAxes: [],
-          recommendedEnvironments: [],
-          recommendedJobs: [],
+          recommendedSectors: [],
           actionPlan: [],
         },
       });

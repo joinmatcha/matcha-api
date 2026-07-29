@@ -72,7 +72,7 @@ describe('computePersonality', () => {
       description: 'Orienté efficacité et action.',
       strengths: ['Efficace', 'Décisif'],
       weaknesses: ['Rigide'],
-      recommendedJobs: ['Manager', 'Chef de projet'],
+      suggestedSectors: ['Management', 'Gestion de projet'],
       isActive: true,
     });
   });
@@ -93,10 +93,25 @@ describe('computePersonality', () => {
     expect(result.type).toBe('ESTJ');
     expect(result.label).toBe('Leader pragmatique');
     expect(result.strengths).toContain('Efficace');
+    expect(result.suggestedSectors).toEqual([
+      'Management',
+      'Gestion de projet',
+    ]);
+    expect(result.dimensionInsights).toHaveLength(4);
+    expect(result.dimensionInsights[0]).toMatchObject({
+      key: 'EI',
+      label: 'Énergie relationnelle',
+      preference: 'Interaction et échange',
+    });
+    expect(result.workPreferences).toEqual(
+      expect.arrayContaining([expect.stringContaining('échanges réguliers')])
+    );
 
     const testInDb = await PersonalityTest.findOne({ type: 'ESTJ' });
     expect(testInDb).not.toBeNull();
     expect(testInDb?.result).toBe('Leader pragmatique');
+    expect(testInDb?.dimensionInsights).toHaveLength(4);
+    expect(testInDb?.workPreferences).toHaveLength(4);
   });
 
   it('should throw if no active test exists', async () => {

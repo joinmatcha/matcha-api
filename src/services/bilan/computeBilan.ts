@@ -1,6 +1,7 @@
 import { BilanAnswerSetDocument } from '@/models/BilanAnswerSet';
 import { BilanCompetence } from '@/models/BilanCompetence';
 import { BilanQuestionDocument } from '@/models/BilanQuestion';
+import { refreshRecommendationProfile } from '@/services/jobs/profileMatching';
 import {
   aggregateScores,
   classifyCompetences,
@@ -40,7 +41,7 @@ export const computeAndStoreBilan = async (
       feasibilityProfile,
     });
 
-  return BilanCompetence.create({
+  const bilan = await BilanCompetence.create({
     user,
     version,
     rawAnswers: answers,
@@ -55,4 +56,8 @@ export const computeAndStoreBilan = async (
     },
     conclusion,
   });
+
+  await refreshRecommendationProfile(user.toString());
+
+  return bilan;
 };

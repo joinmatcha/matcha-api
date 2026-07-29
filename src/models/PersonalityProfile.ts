@@ -8,7 +8,7 @@ export interface PersonalityProfileDocument extends Document {
   description?: string;
   strengths: string[];
   weaknesses: string[];
-  recommendedJobs: string[];
+  suggestedSectors: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -44,7 +44,7 @@ const PersonalityProfileSchema = new Schema<PersonalityProfileDocument>(
     },
     strengths: { type: [String], default: [] },
     weaknesses: { type: [String], default: [] },
-    recommendedJobs: { type: [String], default: [] },
+    suggestedSectors: { type: [String], default: [] },
     isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }

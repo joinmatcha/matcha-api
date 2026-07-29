@@ -1,7 +1,6 @@
 import { Document, Model, Schema, model } from 'mongoose';
 
 export type BilanQuestionDomain =
-  | 'experience'
   | 'competence'
   | 'soft_skill'
   | 'value'
@@ -9,7 +8,7 @@ export type BilanQuestionDomain =
   | 'interest'
   | 'feasibility';
 
-export type BilanQuestionType = 'likert_1_5' | 'open_text';
+export type BilanQuestionType = 'likert_1_5';
 
 export interface BilanQuestionDocument extends Document {
   code: string; // ex: "C1", "SS4", "V7"
@@ -30,7 +29,6 @@ const BilanQuestionSchema = new Schema<BilanQuestionDocument>(
       type: String,
       required: true,
       enum: [
-        'experience',
         'competence',
         'soft_skill',
         'value',
@@ -44,7 +42,7 @@ const BilanQuestionSchema = new Schema<BilanQuestionDocument>(
     type: {
       type: String,
       required: true,
-      enum: ['likert_1_5', 'open_text'],
+      enum: ['likert_1_5'],
     },
     version: { type: Number, required: true, default: 1 },
     isActive: { type: Boolean, required: true, default: true },

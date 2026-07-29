@@ -207,7 +207,7 @@ describe('Personality API', () => {
         description: 'Efficace et orienté résultats',
         strengths: ['Leadership'],
         weaknesses: ['Rigidité'],
-        recommendedJobs: ['Manager'],
+        suggestedSectors: ['Management'],
         isActive: true,
       });
     });
@@ -228,6 +228,7 @@ describe('Personality API', () => {
       expect(res.status).toBe(201);
       expect(res.body.data.type).toBeDefined();
       expect(typeof res.body.data.label).toBe('string');
+      expect(res.body.data.suggestedSectors).toEqual(['Management']);
       expect(res.body.data.label.length).toBeGreaterThan(0);
 
       const saved = await PersonalityTest.findOne({

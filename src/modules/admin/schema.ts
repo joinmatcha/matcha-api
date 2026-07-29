@@ -108,7 +108,7 @@ const personalityProfileSchema = z.object({
   description: z.string().trim().optional(),
   strengths: z.array(z.string().trim().min(1)).optional(),
   weaknesses: z.array(z.string().trim().min(1)).optional(),
-  recommendedJobs: z.array(z.string().trim().min(1)).optional(),
+  suggestedSectors: z.array(z.string().trim().min(1)).optional(),
 });
 
 export const adminTemplateListQuerySchema = paginationSchema.extend({
@@ -152,20 +152,19 @@ export const adminAddTemplateQuestionSchema = personalityQuestionSchema;
 export const adminUpdateTemplateQuestionSchema =
   personalityQuestionUpdateSchema;
 
+const bilanQuestionDomainSchema = z.enum([
+  'competence',
+  'soft_skill',
+  'value',
+  'work_condition',
+  'interest',
+  'feasibility',
+]);
+
 export const adminBilanQuestionListQuerySchema = paginationSchema.extend({
   version: z.coerce.number().int().positive().optional(),
   isActive: z.coerce.boolean().optional(),
-  domain: z
-    .enum([
-      'experience',
-      'competence',
-      'soft_skill',
-      'value',
-      'work_condition',
-      'interest',
-      'feasibility',
-    ])
-    .optional(),
+  domain: bilanQuestionDomainSchema.optional(),
 });
 
 export const adminBilanQuestionParamsSchema = z.object({
@@ -208,18 +207,10 @@ export const adminDuplicateBilanVersionSchema = z.object({
 
 const baseBilanQuestionSchema = z.object({
   code: z.string().trim().min(1),
-  domain: z.enum([
-    'experience',
-    'competence',
-    'soft_skill',
-    'value',
-    'work_condition',
-    'interest',
-    'feasibility',
-  ]),
+  domain: bilanQuestionDomainSchema,
   subdomain: z.string().trim().nullable().optional(),
   question: z.string().trim().min(1),
-  type: z.enum(['likert_1_5', 'open_text']),
+  type: z.enum(['likert_1_5']),
   version: z.number().int().positive(),
   isActive: z.boolean().optional(),
 });

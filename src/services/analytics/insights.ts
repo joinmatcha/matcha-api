@@ -5,6 +5,7 @@ import {
   AnalyticsEventDocument,
 } from '@/models/AnalyticsEvent';
 import { BilanCompetence } from '@/models/BilanCompetence';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import { WorkStyleResult } from '@/models/WorkStyleResult';
 
 export type InsightsDateRange = {
@@ -43,6 +44,20 @@ function createdAtMatch(range: InsightsDateRange = {}) {
 
 function resultCreatedAtMatch(range: InsightsDateRange = {}) {
   const match: Record<string, unknown> = createdAtMatch(range);
+  if (range.userId) match.user = range.userId;
+  if (range.userHash && !range.userId) match.user = new Types.ObjectId();
+  return match;
+}
+
+function recommendationProfileMatch(range: InsightsDateRange = {}) {
+  const recalculatedAt: Record<string, Date> = {};
+  if (range.from) recalculatedAt.$gte = range.from;
+  if (range.to) recalculatedAt.$lte = range.to;
+
+  const match: Record<string, unknown> = {};
+  if (Object.keys(recalculatedAt).length) {
+    match.recalculatedAt = recalculatedAt;
+  }
   if (range.userId) match.user = range.userId;
   if (range.userHash && !range.userId) match.user = new Types.ObjectId();
   return match;
@@ -207,7 +222,7 @@ export async function getInsightsTests(range: InsightsDateRange = {}) {
 }
 
 async function topJobEvents(
-  eventType: 'job_matched' | 'job_viewed' | 'job_swiped',
+  eventType: 'job_viewed' | 'job_swiped',
   range: InsightsDateRange,
   limit: number,
   action?: 'like' | 'dislike'
@@ -247,7 +262,7 @@ async function topJobEvents(
 }
 
 async function topDomains(
-  eventType: 'job_matched' | 'job_viewed' | 'job_swiped',
+  eventType: 'job_viewed' | 'job_swiped',
   range: InsightsDateRange,
   limit: number,
   action?: 'like' | 'dislike'
@@ -276,22 +291,71 @@ async function topDomains(
   ]);
 }
 
+async function topMatchedJobsFromProfiles(
+  range: InsightsDateRange,
+  limit: number
+) {
+  return RecommendationProfile.aggregate([
+    { $match: { ...recommendationProfileMatch(range), unlocked: true } },
+    { $unwind: '$matchedJobs' },
+    {
+      $group: {
+        _id: '$matchedJobs.code',
+        count: { $sum: 1 },
+        title: { $first: '$matchedJobs.title' },
+        domain: { $first: '$matchedJobs.sector' },
+        averageScore: { $avg: '$matchedJobs.score' },
+      },
+    },
+    { $sort: { count: -1, averageScore: -1, title: 1 } },
+    { $limit: limit },
+    {
+      $project: {
+        _id: 0,
+        jobId: '$_id',
+        title: { $ifNull: ['$title', 'Métier inconnu'] },
+        domain: { $ifNull: ['$domain', 'Domaine inconnu'] },
+        count: 1,
+      },
+    },
+  ]);
+}
+
+async function topMatchedDomainsFromProfiles(
+  range: InsightsDateRange,
+  limit: number
+) {
+  return RecommendationProfile.aggregate([
+    { $match: { ...recommendationProfileMatch(range), unlocked: true } },
+    { $unwind: '$matchedJobs' },
+    {
+      $group: {
+        _id: { $ifNull: ['$matchedJobs.sector', 'Domaine inconnu'] },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { count: -1, _id: 1 } },
+    { $limit: limit },
+    { $project: { _id: 0, domain: '$_id', count: 1 } },
+  ]);
+}
+
 export async function getInsightsJobs(range: InsightsDateRange = {}) {
   const limit = clampLimit(range.limit);
   const [matched, viewed, liked, disliked, matchedDomains, likedDomains] =
     await Promise.all([
-      topJobEvents('job_matched', range, limit),
+      topMatchedJobsFromProfiles(range, limit),
       topJobEvents('job_viewed', range, limit),
       topJobEvents('job_swiped', range, limit, 'like'),
       topJobEvents('job_swiped', range, limit, 'dislike'),
-      topDomains('job_matched', range, limit),
+      topMatchedDomainsFromProfiles(range, limit),
       topDomains('job_swiped', range, limit, 'like'),
     ]);
 
   const viewedIds = new Set(viewed.map((item) => item.jobId));
   const likedIds = new Set(liked.map((item) => item.jobId));
 
-  const recommendationInterestGap = matched
+  const matchInterestGap = matched
     .filter((item) => !viewedIds.has(item.jobId) && !likedIds.has(item.jobId))
     .slice(0, limit);
 
@@ -304,7 +368,7 @@ export async function getInsightsJobs(range: InsightsDateRange = {}) {
       matched: matchedDomains,
       liked: likedDomains,
     },
-    recommendationInterestGap,
+    matchInterestGap,
   };
 }
 

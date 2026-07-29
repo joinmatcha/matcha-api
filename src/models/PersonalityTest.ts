@@ -8,6 +8,18 @@ const AnswerSchema = new Schema(
   { _id: false }
 );
 
+const DimensionInsightSchema = new Schema(
+  {
+    key: { type: String, required: true },
+    label: { type: String, required: true },
+    preference: { type: String, required: true },
+    score: { type: Number, required: true },
+    intensity: { type: String, required: true },
+    description: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const PersonalityTestSchema = new Schema(
   {
     userId: {
@@ -44,7 +56,9 @@ const PersonalityTestSchema = new Schema(
     description: { type: String },
     traits: { type: [String], default: [] }, // forces synthétiques
     weaknesses: { type: [String], default: [] },
-    motivationProfile: { type: [String], default: [] }, // jobs suggérés
+    suggestedSectors: { type: [String], default: [] }, // jobs suggérés
+    dimensionInsights: { type: [DimensionInsightSchema], default: [] },
+    workPreferences: { type: [String], default: [] },
 
     // détails du scoring pour transparence & debug
     scoreBreakdown: {

@@ -11,6 +11,7 @@ import {
   WorkStyleProfileDefinition,
   WorkStyleVersion,
 } from '@/models/WorkStyleVersion';
+import { refreshRecommendationProfile } from '@/services/jobs/profileMatching';
 import { HttpError } from '@/utils/httpError';
 
 export type WorkStyleAnswerInput = {
@@ -217,6 +218,7 @@ export const computeWorkStyle = async (
   });
 
   await User.findByIdAndUpdate(userId, { workStyleResultId: result._id });
+  await refreshRecommendationProfile(userId);
 
   return serializeWorkStyleResult(result);
 };

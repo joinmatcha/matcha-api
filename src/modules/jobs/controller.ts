@@ -6,12 +6,18 @@ import {
   DISLIKE_COOLDOWN_DAYS,
   MAX_JOBS_PER_SECTOR,
 } from '@/constants/swipe';
-import { BilanCompetence } from '@/models/BilanCompetence';
+import { MatchingDecision } from '@/models/MatchingDecision';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
 import { compareJobsForUser } from '@/services/jobs/compare';
+import {
+  buildProfileMatching,
+  getPersonalizedDeckJobs,
+  refreshRecommendationProfile,
+} from '@/services/jobs/profileMatching';
 import { getTopLikedJobsForUser } from '@/services/jobs/topLiked';
 import {
   computeWorkStyleCompatibility,
@@ -88,6 +94,58 @@ function formatRomeJobSummary(job: any) {
     ].filter(Boolean),
     riasec: job.riasec?.codes ?? [],
   };
+}
+
+function formatMatchedJobSummary(job: {
+  id: string;
+  code: string;
+  title: string;
+  sector?: string;
+  description?: string;
+}) {
+  return {
+    id: job.id,
+    code: job.code,
+    title: job.title,
+    sector: job.sector,
+    description: job.description,
+    growthOutlook: 'unknown',
+    tags: [],
+    riasec: [],
+  };
+}
+
+function toObjectIdString(value: unknown) {
+  return value instanceof Types.ObjectId ? value.toString() : String(value);
+}
+
+function formatMatchingProfileJob(
+  job: {
+    jobId: Types.ObjectId;
+    code: string;
+    title: string;
+    sector?: string;
+    score: number;
+    reasons: string[];
+  },
+  action?: 'like' | 'dislike'
+) {
+  return {
+    id: toObjectIdString(job.jobId),
+    code: job.code,
+    title: job.title,
+    sector: job.sector,
+    score: job.score,
+    reasons: job.reasons,
+    decision: action ?? null,
+  };
+}
+
+async function getFreshRecommendationProfile(userId: string) {
+  const profile = await RecommendationProfile.findOne({ user: userId }).lean();
+  if (profile) return profile;
+
+  return refreshRecommendationProfile(userId);
 }
 
 function formatMarketStats(market: any) {
@@ -225,37 +283,59 @@ export const getDeck = async (
       userId: req.user.id,
       $or: [
         ...getTodaySwipeConditions(dayKey),
+        { action: 'like' },
         { action: 'dislike', swipedAt: { $gte: cooldownDate } },
       ],
     }).distinct('jobId');
 
-    const jobs = await RomeMetier.aggregate([
-      { $match: { isActive: true, _id: { $nin: excludedSwipes } } },
-      {
-        $group: {
-          _id: '$domain.label',
-          jobs: { $push: '$$ROOT' },
-        },
-      },
-      { $project: { jobs: { $slice: ['$jobs', MAX_JOBS_PER_SECTOR] } } },
-      { $unwind: '$jobs' },
-      { $replaceRoot: { newRoot: '$jobs' } },
-      { $sample: { size } },
-      {
-        $project: {
-          _id: 1,
-          code: 1,
-          label: 1,
-          definition: 1,
-          domain: 1,
-          themes: 1,
-          sectors: 1,
-        },
-      },
-    ]);
+    const personalizedJobs = await getPersonalizedDeckJobs({
+      userId: req.user.id,
+      excludedJobIds: excludedSwipes,
+      limit: size,
+    });
+
+    const personalizedIds = personalizedJobs.map(
+      (job) => new Types.ObjectId(job.id)
+    );
+    const fallbackSize = Math.max(size - personalizedJobs.length, 0);
+    const fallbackJobs =
+      fallbackSize > 0
+        ? await RomeMetier.aggregate([
+            { $match: { isActive: true, _id: { $nin: excludedSwipes } } },
+            {
+              $group: {
+                _id: '$domain.label',
+                jobs: { $push: '$$ROOT' },
+              },
+            },
+            { $project: { jobs: { $slice: ['$jobs', MAX_JOBS_PER_SECTOR] } } },
+            { $unwind: '$jobs' },
+            { $replaceRoot: { newRoot: '$jobs' } },
+            { $sample: { size } },
+            {
+              $project: {
+                _id: 1,
+                code: 1,
+                label: 1,
+                definition: 1,
+                domain: 1,
+                themes: 1,
+                sectors: 1,
+              },
+            },
+          ])
+        : [];
+
+    const fallbackWithoutDuplicates = fallbackJobs.filter(
+      (job) =>
+        !personalizedIds.some((id) => id.equals(job._id as Types.ObjectId))
+    );
 
     return res.status(200).json({
-      jobs: jobs.map(formatRomeJobSummary),
+      jobs: [
+        ...personalizedJobs.map(formatMatchedJobSummary),
+        ...fallbackWithoutDuplicates.map(formatRomeJobSummary),
+      ].slice(0, size),
       remaining,
       limit: DAILY_SWIPE_LIMIT,
     });
@@ -353,6 +433,7 @@ export const swipeJob = async (
 
     const usedAfterSwipe = swipedTodayFromSwipes + 1;
     const remaining = Math.max(DAILY_SWIPE_LIMIT - usedAfterSwipe, 0);
+    await refreshRecommendationProfile(req.user.id);
 
     return res.status(201).json({
       swipe: {
@@ -379,17 +460,148 @@ export const getRecommendedJobs = async (
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const bilan = await BilanCompetence.findOne({
-      user: req.user.id,
-    }).sort({ createdAt: -1 });
+    const matching = await buildProfileMatching(req.user.id, {
+      limit: 20,
+      minScore: 15,
+    });
 
-    if (!bilan) {
-      return res.status(404).json({ message: 'No bilan found' });
+    if (!matching.unlocked) {
+      return res.status(200).json({
+        unlocked: false,
+        missingTests: matching.missingTests,
+        sectors: matching.sectors,
+        jobs: [],
+      });
     }
 
     return res.status(200).json({
-      jobs: bilan.conclusion.recommendedJobs,
+      unlocked: true,
+      sectors: matching.sectors,
+      jobs: matching.jobs,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getJobMatching = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const profile = await getFreshRecommendationProfile(req.user.id);
+    if (!profile?.unlocked) {
+      return res.status(200).json({
+        unlocked: false,
+        missingTests: profile?.missingSources ?? [
+          'bilan',
+          'personality',
+          'work_style',
+        ],
+        sectors: profile?.sectors ?? [],
+        total: 0,
+        remaining: 0,
+        completed: false,
+        jobs: [],
+        likedJobs: [],
+        dislikedJobs: [],
+      });
+    }
+
+    const jobIds = profile.matchedJobs.map((job) => job.jobId);
+    const decisions = await MatchingDecision.find({
+      userId: req.user.id,
+      jobId: { $in: jobIds },
+    }).lean();
+    const decisionsByJobId = new Map(
+      decisions.map((decision) => [decision.jobId.toString(), decision.action])
+    );
+
+    const jobs = profile.matchedJobs.map((job) =>
+      formatMatchingProfileJob(job, decisionsByJobId.get(job.jobId.toString()))
+    );
+    const likedJobs = jobs.filter((job) => job.decision === 'like');
+    const dislikedJobs = jobs.filter((job) => job.decision === 'dislike');
+    const remaining = jobs.filter((job) => !job.decision).length;
+
+    return res.status(200).json({
+      unlocked: true,
+      missingTests: [],
+      sectors: profile.sectors,
+      total: jobs.length,
+      remaining,
+      completed: jobs.length > 0 && remaining === 0,
+      jobs,
+      likedJobs,
+      dislikedJobs,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const decideJobMatching = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { jobId, action } = req.body as {
+      jobId: string;
+      action: 'like' | 'dislike';
+    };
+
+    const profile = await getFreshRecommendationProfile(req.user.id);
+    const isMatchedJob = profile?.matchedJobs.some((job) =>
+      job.jobId.equals(jobId)
+    );
+
+    if (!profile?.unlocked || !isMatchedJob) {
+      return res
+        .status(404)
+        .json({ message: 'Métier absent du matching actuel' });
+    }
+
+    await MatchingDecision.findOneAndUpdate(
+      { userId: req.user.id, jobId },
+      { $set: { action, decidedAt: new Date() } },
+      { upsert: true, new: true }
+    );
+
+    return getJobMatching(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetJobMatching = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const profile = await getFreshRecommendationProfile(req.user.id);
+    const jobIds = profile?.matchedJobs.map((job) => job.jobId) ?? [];
+
+    await MatchingDecision.deleteMany({
+      userId: req.user.id,
+      ...(jobIds.length ? { jobId: { $in: jobIds } } : {}),
+    });
+
+    return getJobMatching(req, res, next);
   } catch (error) {
     next(error);
   }
@@ -466,18 +678,22 @@ export const getJobById = async (
     let workStyleCompatibility = null;
 
     if (req.user) {
-      const [bilan, workStyle] = await Promise.all([
-        BilanCompetence.findOne({
+      const [recommendationProfile, workStyle] = await Promise.all([
+        RecommendationProfile.findOne({
           user: req.user.id,
-        })
-          .sort({ createdAt: -1 })
-          .lean(),
+        }).lean(),
         getLatestWorkStyleResult(req.user.id),
       ]);
 
-      recommendation = bilan?.conclusion.recommendedJobs.find(
-        (j) => j.id === id
+      const matchedJob = recommendationProfile?.matchedJobs.find((matched) =>
+        matched.jobId.equals(job._id)
       );
+      recommendation = matchedJob
+        ? {
+            score: matchedJob.score,
+            reasons: matchedJob.reasons,
+          }
+        : undefined;
       workStyleCompatibility = computeWorkStyleCompatibility(workStyle, job);
     }
 

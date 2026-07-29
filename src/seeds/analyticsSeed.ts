@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 
 import { AnalyticsEvent } from '@/models/AnalyticsEvent';
 import { BilanCompetence } from '@/models/BilanCompetence';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import User from '@/models/User';
 import { WorkStyleResult } from '@/models/WorkStyleResult';
 import { hashAnalyticsUserId } from '@/services/analytics/tracking';
@@ -101,6 +102,7 @@ export async function seedAnalytics() {
   await Promise.all([
     AnalyticsEvent.deleteMany({ 'metadata.seedBatch': seedBatch }),
     BilanCompetence.deleteMany({ user: { $in: existingUserIds } }),
+    RecommendationProfile.deleteMany({ user: { $in: existingUserIds } }),
     WorkStyleResult.deleteMany({ user: { $in: existingUserIds } }),
     User.deleteMany({ email: /^insights-seed-\d+@matcha\.local$/ }),
   ]);
@@ -204,34 +206,6 @@ export async function seedAnalytics() {
       });
     }
 
-    if (test.entityType === 'bilan' && completed) {
-      const recommended = [
-        pick(jobs, sessionIndex),
-        pick(jobs, sessionIndex + 3),
-        pick(jobs, sessionIndex + 5),
-      ];
-      recommended.forEach((job, rank) => {
-        events.push({
-          eventType: 'job_matched',
-          userHash,
-          sessionId,
-          source: 'mobile',
-          entityType: 'job',
-          entityId: job.id,
-          metadata: {
-            seedBatch,
-            jobTitle: job.title,
-            domain: job.domain,
-            rank: rank + 1,
-            score: 92 - rank * 7,
-            sourceTest: 'bilan',
-          },
-          occurredAt: new Date(endDate.getTime() + rank * 15_000),
-          receivedAt: new Date(endDate.getTime() + rank * 15_000),
-        });
-      });
-    }
-
     const viewedJob = pick(jobs, sessionIndex + 2);
     const action = sessionIndex % 4 === 0 ? 'dislike' : 'like';
     events.push(
@@ -276,17 +250,6 @@ export async function seedAnalytics() {
     users.slice(0, 14).map((user, index) => {
       const strengths = pick(competenceSets, index);
       const toImprove = pick(toImproveSets, index);
-      const recommendedJobs = [
-        pick(jobs, index),
-        pick(jobs, index + 4),
-        pick(jobs, index + 7),
-      ].map((job, rank) => ({
-        id: job.id,
-        title: job.title,
-        sector: job.domain,
-        score: 90 - rank * 6,
-      }));
-
       return {
         user: user._id,
         version: 2,
@@ -332,8 +295,7 @@ export async function seedAnalytics() {
           profileSummary: 'Profil généré pour démontrer les insights.',
           keyStrengths: strengths,
           improvementAxes: toImprove,
-          recommendedEnvironments: ['Equipe bienveillante'],
-          recommendedJobs,
+          recommendedSectors: ['Equipe bienveillante'],
           actionPlan: ['Explorer les métiers recommandés'],
         },
       };
@@ -373,10 +335,56 @@ export async function seedAnalytics() {
     })
   );
 
+  await RecommendationProfile.insertMany(
+    users.slice(0, 12).map((user, index) => {
+      const matched = [
+        pick(jobs, index),
+        pick(jobs, index + 3),
+        pick(jobs, index + 5),
+      ];
+
+      return {
+        user: user._id,
+        algorithmVersion: 'profile-matching-v2',
+        completedSources: ['bilan', 'personality', 'work_style'],
+        missingSources: [],
+        unlocked: true,
+        sectors: [
+          {
+            key: pick(matched, 0).domain.toLowerCase(),
+            label: pick(matched, 0).domain,
+            weight: 3,
+            sources: ['Auto-évaluation', 'Métiers likés'],
+          },
+        ],
+        interests: [{ key: 'riasec_s', label: 'RIASEC_S', weight: 2.4 }],
+        skills: [{ key: 'communication', label: 'communication', weight: 2 }],
+        workConditions: [
+          { key: 'contact humain', label: 'contact humain', weight: 1.8 },
+        ],
+        matchedJobs: matched.map((job, rank) => ({
+          jobId: new Types.ObjectId(),
+          code: job.id,
+          title: job.title,
+          sector: job.domain,
+          score: 92 - rank * 7,
+          reasons: [
+            'Compatible avec le profil consolidé',
+            'Secteur présent dans les signaux Matcha',
+          ],
+        })),
+        recalculatedAt: dateDaysAgo(index % 12),
+        createdAt: dateDaysAgo(index % 12),
+        updatedAt: dateDaysAgo(index % 12),
+      };
+    })
+  );
+
   return {
     users: users.length,
     events: events.length,
     bilans: 14,
     workStyleResults: 12,
+    recommendationProfiles: 12,
   };
 }

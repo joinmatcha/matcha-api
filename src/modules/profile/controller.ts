@@ -7,8 +7,9 @@ import { BilanCompetence } from '@/models/BilanCompetence';
 import ChatSession from '@/models/ChatSession';
 import CvParsing from '@/models/CvParsing';
 import LogFeedback from '@/models/LogFeedback';
+import { MatchingDecision } from '@/models/MatchingDecision';
 import PersonalityTest from '@/models/PersonalityTest';
-import Recommendation from '@/models/Recommendation';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import SkillsAssessment from '@/models/SkillsAssessment';
 import { SupportRequest } from '@/models/SupportRequest';
 import { Swipe } from '@/models/Swipe';
@@ -113,7 +114,16 @@ export const getProfile = async (
       description: string | null;
       strengths: string[];
       weaknesses: string[];
-      recommendedJobs: string[];
+      suggestedSectors: string[];
+      dimensionInsights?: Array<{
+        key: 'EI' | 'SN' | 'TF' | 'JP';
+        label: string;
+        preference: string;
+        score: number;
+        intensity: 'léger' | 'marqué' | 'fort';
+        description: string;
+      }>;
+      workPreferences?: string[];
       scoreBreakdown: {
         EI: number;
         SN: number;
@@ -137,7 +147,16 @@ export const getProfile = async (
           description: test.description ?? null,
           strengths: test.traits ?? test.traits ?? [],
           weaknesses: test.weaknesses ?? [],
-          recommendedJobs: test.motivationProfile ?? [],
+          suggestedSectors: test.suggestedSectors ?? [],
+          dimensionInsights: (test.dimensionInsights ?? []).map((axis) => ({
+            key: axis.key as 'EI' | 'SN' | 'TF' | 'JP',
+            label: axis.label,
+            preference: axis.preference,
+            score: axis.score,
+            intensity: axis.intensity as 'léger' | 'marqué' | 'fort',
+            description: axis.description,
+          })),
+          workPreferences: test.workPreferences ?? [],
           scoreBreakdown: {
             EI: test.scoreBreakdown?.EI ?? 0,
             SN: test.scoreBreakdown?.SN ?? 0,
@@ -176,7 +195,8 @@ export const deleteAccount = async (
       BilanCompetence.deleteMany({ user: userId }),
       SkillsAssessment.deleteMany({ userId }),
       PersonalityTest.deleteMany({ userId }),
-      Recommendation.deleteMany({ userId }),
+      RecommendationProfile.deleteMany({ user: userId }),
+      MatchingDecision.deleteMany({ userId }),
       LogFeedback.deleteMany({ userId }),
       CvParsing.deleteMany({ userId }),
       ChatSession.deleteMany({ userId }),
