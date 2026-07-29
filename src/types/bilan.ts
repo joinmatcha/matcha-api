@@ -5,14 +5,6 @@ export interface BilanArchetypeDTO {
   description: string;
 }
 
-export interface BilanRecommendedJobDTO {
-  id: string;
-  title: string;
-  description?: string;
-  sector?: string;
-  score: number;
-}
-
 export interface BilanConclusionDTO {
   archetype: BilanArchetypeDTO;
 
@@ -20,8 +12,7 @@ export interface BilanConclusionDTO {
   keyStrengths: string[];
   improvementAxes: string[];
 
-  recommendedEnvironments: string[];
-  recommendedJobs: BilanRecommendedJobDTO[];
+  recommendedSectors: string[];
 
   actionPlan: string[];
 }

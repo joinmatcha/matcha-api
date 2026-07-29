@@ -16,7 +16,7 @@ type PersonalityProfileDTO = {
   description?: string;
   strengths?: string[];
   weaknesses?: string[];
-  recommendedJobs?: string[];
+  suggestedSectors?: string[];
 };
 
 export type ActivePersonalityVersion = {
@@ -75,7 +75,7 @@ export const getActivePersonalityVersion =
         description: profile.description,
         strengths: profile.strengths ?? [],
         weaknesses: profile.weaknesses ?? [],
-        recommendedJobs: profile.recommendedJobs ?? [],
+        suggestedSectors: profile.suggestedSectors ?? [],
       })),
     };
   };

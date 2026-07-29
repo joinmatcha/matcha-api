@@ -4,6 +4,9 @@ import request from 'supertest';
 
 import app from '@/app';
 import { BilanCompetence } from '@/models/BilanCompetence';
+import { MatchingDecision } from '@/models/MatchingDecision';
+import PersonalityTest from '@/models/PersonalityTest';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
@@ -38,10 +41,10 @@ const createUserAndGetToken = async () => {
 
 const createMinimalBilan = async ({
   userId,
-  recommendedJobs = [],
+  suggestedSectors = [],
 }: {
   userId: string;
-  recommendedJobs?: any[];
+  suggestedSectors?: any[];
 }) => {
   return BilanCompetence.create({
     user: userId,
@@ -65,9 +68,55 @@ const createMinimalBilan = async ({
       profileSummary: 'Résumé de test',
       keyStrengths: [],
       improvementAxes: [],
-      recommendedEnvironments: [],
-      recommendedJobs,
+      recommendedSectors: [],
+      suggestedSectors,
       actionPlan: [],
+    },
+  });
+};
+
+const createMinimalPersonality = async (userId: string) => {
+  const test = await PersonalityTest.create({
+    userId,
+    templateId: new mongoose.Types.ObjectId(),
+    templateVersion: '1',
+    answers: [],
+    type: 'INTP',
+    result: 'Penseur',
+    description: 'Profil analytique.',
+    traits: ['analysis'],
+    weaknesses: [],
+    suggestedSectors: ['Tech'],
+    scoreBreakdown: { EI: -2, SN: -2, TF: 2, JP: 0 },
+  });
+
+  await User.findByIdAndUpdate(userId, { personalityTestId: test._id });
+};
+
+const createMinimalWorkStyle = async (userId: string) => {
+  await WorkStyleResult.create({
+    user: userId,
+    versionId: new mongoose.Types.ObjectId(),
+    version: 1,
+    answers: [],
+    scores: {
+      autonomy: 80,
+      collaboration: 45,
+      pace: 50,
+      structure: 60,
+      variety: 55,
+      human_contact: 35,
+      mobility: 20,
+      learning: 85,
+    },
+    topAxes: ['autonomy', 'learning'],
+    profile: {
+      key: 'autonomous_structured',
+      title: 'Autonome structuré',
+      description: 'Cadre clair et autonomie.',
+      strengths: ['Autonomie', 'Apprentissage'],
+      cautions: [],
+      advice: [],
     },
   });
 };
@@ -77,6 +126,10 @@ describe('Jobs routes', () => {
     await RomeMetier.deleteMany({});
     await RomeMarketStat.deleteMany({});
     await BilanCompetence.deleteMany({});
+    await PersonalityTest.deleteMany({});
+    await RecommendationProfile.deleteMany({});
+    await MatchingDecision.deleteMany({});
+    await WorkStyleResult.deleteMany({});
     await User.deleteMany({});
   });
 
@@ -155,6 +208,31 @@ describe('Jobs routes', () => {
         jobId: job._id,
         action: 'like',
         swipedAt: new Date(),
+      });
+
+      const res = await request(app)
+        .get('/api/jobs/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs.map((j: any) => j.id)).not.toContain(
+        job._id.toString()
+      );
+    });
+
+    it('should exclude previously liked jobs from future decks', async () => {
+      const { user, token } = await createUserAndGetToken();
+
+      const job = await createRomeMetier({ label: 'Développeur·se web' });
+
+      const oldLike = new Date();
+      oldLike.setDate(oldLike.getDate() - 14);
+
+      await Swipe.create({
+        userId: user._id,
+        jobId: job._id,
+        action: 'like',
+        swipedAt: oldLike,
       });
 
       const res = await request(app)
@@ -499,40 +577,49 @@ describe('Jobs routes', () => {
   });
 
   describe('GET /api/jobs/recommended', () => {
-    it('should return recommended jobs from latest bilan', async () => {
+    it('should return matched jobs when the recommendation profile is unlocked', async () => {
       const { user, token } = await createUserAndGetToken();
+      await RomeMetier.create(
+        buildRomeMetier({
+          code: 'M1805',
+          label: 'Développeur·se web',
+          domain: { label: 'Tech' },
+          riasec: { major: 'I', codes: ['RIASEC_I'] },
+          skills: [{ label: 'analysis', isMain: true }],
+          workContexts: [{ label: 'remote' }, { label: 'innovation' }],
+        })
+      );
 
       await createMinimalBilan({
         userId: user._id.toString(),
-        recommendedJobs: [
-          {
-            id: 'job-1',
-            title: 'Développeur·se web',
-            sector: 'Tech',
-            description: 'Conçoit des applications web',
-            score: 80,
-          },
-        ],
       });
+      await createMinimalPersonality(user._id.toString());
+      await createMinimalWorkStyle(user._id.toString());
 
       const res = await request(app)
         .get('/api/jobs/recommended')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
+      expect(res.body.unlocked).toBe(true);
       expect(res.body.jobs).toHaveLength(1);
       expect(res.body.jobs[0].title).toBe('Développeur·se web');
       expect(res.body.jobs[0].score).toBeGreaterThan(0);
     });
 
-    it('should return 404 if no bilan exists', async () => {
+    it('should return locked recommendation state when tests are missing', async () => {
       const { token } = await createUserAndGetToken();
 
       const res = await request(app)
         .get('/api/jobs/recommended')
         .set('Authorization', `Bearer ${token}`);
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(200);
+      expect(res.body.unlocked).toBe(false);
+      expect(res.body.missingTests).toEqual(
+        expect.arrayContaining(['bilan', 'personality', 'work_style'])
+      );
+      expect(res.body.jobs).toHaveLength(0);
     });
 
     it('should return 401 if no token is provided', async () => {
@@ -703,7 +790,7 @@ describe('Jobs routes', () => {
       expect(res.body.job.growthOutlook).toBe('unknown');
     });
 
-    it('should include recommendation if job is part of user bilan', async () => {
+    it('should include recommendation if job is part of the user matching profile', async () => {
       const { user, token } = await createUserAndGetToken();
 
       const job = await createRomeMetier({
@@ -714,15 +801,23 @@ describe('Jobs routes', () => {
         workContexts: [{ label: 'remote' }],
       });
 
-      await createMinimalBilan({
-        userId: user._id.toString(),
-        recommendedJobs: [
+      await RecommendationProfile.create({
+        user: user._id,
+        algorithmVersion: 'test',
+        completedSources: ['bilan', 'personality', 'work_style'],
+        missingSources: [],
+        unlocked: true,
+        matchedJobs: [
           {
-            id: job._id.toString(),
+            jobId: job._id,
+            code: job.code,
             title: job.label,
+            sector: job.domain?.label,
             score: 75,
+            reasons: ['Profil global compatible'],
           },
         ],
+        recalculatedAt: new Date(),
       });
 
       const res = await request(app)
@@ -818,6 +913,125 @@ describe('Jobs routes', () => {
       const res = await request(app)
         .get(`/api/jobs/${job._id}`)
         .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/jobs/matching', () => {
+    async function createMatchingProfile(userId: mongoose.Types.ObjectId) {
+      const jobIds = Array.from(
+        { length: 3 },
+        () => new mongoose.Types.ObjectId()
+      );
+
+      await RecommendationProfile.create({
+        user: userId,
+        completedSources: ['bilan', 'personality', 'work_style'],
+        missingSources: [],
+        unlocked: true,
+        sectors: [
+          {
+            key: 'tech',
+            label: 'Tech',
+            weight: 3,
+            sources: ['Auto-évaluation'],
+          },
+        ],
+        matchedJobs: jobIds.map((jobId, index) => ({
+          jobId,
+          code: `M180${index}`,
+          title: `Métier matché ${index + 1}`,
+          sector: 'Tech',
+          score: 90 - index,
+          reasons: ['Compatible avec le profil consolidé'],
+        })),
+        recalculatedAt: new Date(),
+      });
+
+      return jobIds;
+    }
+
+    it('should expose matched jobs without daily deck quota', async () => {
+      const { user, token } = await createUserAndGetToken();
+      await createMatchingProfile(user._id);
+
+      const res = await request(app)
+        .get('/api/jobs/matching')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        unlocked: true,
+        total: 3,
+        remaining: 3,
+        completed: false,
+      });
+      expect(res.body.jobs).toHaveLength(3);
+      expect(res.body.jobs[0]).toMatchObject({
+        title: 'Métier matché 1',
+        decision: null,
+      });
+    });
+
+    it('should complete, show liked jobs and reset matching decisions', async () => {
+      const { user, token } = await createUserAndGetToken();
+      const [likedJobId, dislikedJobId, secondLikedJobId] =
+        await createMatchingProfile(user._id);
+
+      for (const [jobId, action] of [
+        [likedJobId, 'like'],
+        [dislikedJobId, 'dislike'],
+        [secondLikedJobId, 'like'],
+      ] as const) {
+        const decisionRes = await request(app)
+          .post('/api/jobs/matching/decision')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ jobId: jobId.toString(), action });
+
+        expect(decisionRes.status).toBe(200);
+      }
+
+      const completedRes = await request(app)
+        .get('/api/jobs/matching')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(completedRes.body).toMatchObject({
+        total: 3,
+        remaining: 0,
+        completed: true,
+      });
+      expect(completedRes.body.likedJobs.map((job: any) => job.id)).toEqual([
+        likedJobId.toString(),
+        secondLikedJobId.toString(),
+      ]);
+
+      const resetRes = await request(app)
+        .delete('/api/jobs/matching/reset')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(resetRes.status).toBe(200);
+      expect(resetRes.body).toMatchObject({
+        total: 3,
+        remaining: 3,
+        completed: false,
+      });
+      expect(await MatchingDecision.countDocuments({ userId: user._id })).toBe(
+        0
+      );
+    });
+
+    it('should reject decisions outside the current matching', async () => {
+      const { user, token } = await createUserAndGetToken();
+      await createMatchingProfile(user._id);
+
+      const res = await request(app)
+        .post('/api/jobs/matching/decision')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jobId: new mongoose.Types.ObjectId().toString(),
+          action: 'like',
+        });
 
       expect(res.status).toBe(404);
     });

@@ -32,7 +32,16 @@ export interface UserProfile {
     description: string | null;
     strengths: string[];
     weaknesses: string[];
-    recommendedJobs: string[];
+    suggestedSectors: string[];
+    dimensionInsights?: Array<{
+      key: 'EI' | 'SN' | 'TF' | 'JP';
+      label: string;
+      preference: string;
+      score: number;
+      intensity: 'léger' | 'marqué' | 'fort';
+      description: string;
+    }>;
+    workPreferences?: string[];
     scoreBreakdown: {
       EI: number;
       SN: number;

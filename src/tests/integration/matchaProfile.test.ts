@@ -78,6 +78,7 @@ describe('Matcha profile routes', () => {
           skills: [{ label: 'Relation client', isMain: true }],
           workContexts: [{ label: 'Contact humain' }],
           themes: [{ label: 'Conseil' }],
+          riasec: { major: 'S', codes: ['RIASEC_S'] },
         })
       );
 
@@ -111,15 +112,7 @@ describe('Matcha profile routes', () => {
             'Tu avances bien quand tu peux créer du lien et aider les autres.',
           keyStrengths: ['Relation client', 'Transmission'],
           improvementAxes: ['Priorisation'],
-          recommendedEnvironments: ['Contact humain'],
-          recommendedJobs: [
-            {
-              id: job._id.toString(),
-              title: 'Conseiller clientèle',
-              sector: 'Relation client',
-              score: 88,
-            },
-          ],
+          recommendedSectors: ['Contact humain'],
           actionPlan: [],
         },
       });
@@ -188,7 +181,8 @@ describe('Matcha profile routes', () => {
           workStyle: true,
         },
         nextBestAction: {
-          type: 'view_liked_jobs',
+          type: 'start_matching',
+          route: 'JobMatching',
         },
       });
       expect(res.body.profile.mainProfile.summary).toContain(
@@ -200,9 +194,9 @@ describe('Matcha profile routes', () => {
       expect(res.body.profile.keyDimensions.strengths).toEqual(
         expect.arrayContaining(['Relation client', 'Transmission', 'Autonomie'])
       );
-      expect(res.body.profile.recommendedJobs).toEqual(
+      expect(res.body.profile.matchedJobs).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ title: 'Conseiller clientèle', score: 88 }),
+          expect.objectContaining({ title: 'Conseiller clientèle' }),
         ])
       );
       expect(res.body.profile.likedJobs).toEqual(

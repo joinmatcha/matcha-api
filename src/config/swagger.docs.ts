@@ -1287,7 +1287,6 @@ export const swaggerDocs = {
  *                   - test_step_completed
  *                   - test_completed
  *                   - test_abandoned
- *                   - job_matched
  *                   - job_viewed
  *                   - job_swiped
  *                   - feedback_submitted

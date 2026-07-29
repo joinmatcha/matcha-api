@@ -11,7 +11,11 @@ const PORT = env.PORT;
     await connectDB();
     await ensureInitialAdmin();
     const server = app.listen(PORT, () => {
-      logger.info('server_started', { port: PORT });
+      logger.startup({
+        name: env.APP_NAME,
+        port: PORT,
+        url: `http://localhost:${PORT}`,
+      });
     });
 
     process.on('SIGINT', () => {

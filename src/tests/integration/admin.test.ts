@@ -387,8 +387,7 @@ describe('Admin routes', () => {
           profileSummary: 'Résumé',
           keyStrengths: [],
           improvementAxes: [],
-          recommendedEnvironments: [],
-          recommendedJobs: [],
+          recommendedSectors: [],
           actionPlan: [],
         },
       });
@@ -458,8 +457,7 @@ describe('Admin routes', () => {
           profileSummary: 'Profil detail',
           keyStrengths: ['analyse'],
           improvementAxes: [],
-          recommendedEnvironments: [],
-          recommendedJobs: [],
+          recommendedSectors: [],
           actionPlan: [],
         },
       });

@@ -24,11 +24,7 @@ export const seedPersonalityTest = async () => {
           'Visionnaire et analytique, aime planifier sur le long terme et optimiser les systèmes.',
         strengths: ['Planificateur', 'Indépendant', 'Analytique', 'Curieux'],
         weaknesses: ['Perfectionniste', 'Distant émotionnellement'],
-        recommendedJobs: [
-          'Consultant stratégie',
-          'Ingénieur',
-          'Data Scientist',
-        ],
+        suggestedSectors: ['Stratégie', 'Ingénierie', 'Data et analyse'],
       },
       {
         key: 'INTP',
@@ -37,7 +33,7 @@ export const seedPersonalityTest = async () => {
           'Cherche la logique et la cohérence avant tout. Adore comprendre les concepts complexes.',
         strengths: ['Innovant', 'Curieux', 'Logique', 'Indépendant'],
         weaknesses: ['Indécis', 'Distrait'],
-        recommendedJobs: ['Chercheur', 'Développeur', 'Analyste'],
+        suggestedSectors: ['Recherche', 'Informatique', 'Data et analyse'],
       },
       {
         key: 'ENTJ',
@@ -46,7 +42,11 @@ export const seedPersonalityTest = async () => {
           'Naturellement tourné vers la prise de décision et la réalisation d’objectifs ambitieux.',
         strengths: ['Charismatique', 'Décisif', 'Efficace'],
         weaknesses: ['Autoritaire', 'Impatient'],
-        recommendedJobs: ['Manager', 'Entrepreneur', 'Chef de projet'],
+        suggestedSectors: [
+          'Management',
+          'Entrepreneuriat',
+          'Gestion de projet',
+        ],
       },
       {
         key: 'ENTP',
@@ -55,7 +55,7 @@ export const seedPersonalityTest = async () => {
           'Curieux et énergique, aime remettre en question le statu quo et explorer de nouvelles idées.',
         strengths: ['Créatif', 'Rapide d’esprit', 'Adaptable'],
         weaknesses: ['Inconstant', 'Impatient'],
-        recommendedJobs: ['Consultant', 'Stratège produit', 'Entrepreneur'],
+        suggestedSectors: ['Conseil', 'Produit digital', 'Entrepreneuriat'],
       },
       {
         key: 'INFJ',
@@ -64,7 +64,11 @@ export const seedPersonalityTest = async () => {
           'Empathique et réfléchi, cherche à aider les autres à trouver du sens à leur travail.',
         strengths: ['Visionnaire', 'Bienveillant', 'Motivé par une mission'],
         weaknesses: ['Idéaliste', 'Réservé'],
-        recommendedJobs: ['Coach', 'Thérapeute', 'Responsable RH'],
+        suggestedSectors: [
+          'Accompagnement',
+          'Santé mentale',
+          'Ressources humaines',
+        ],
       },
       {
         key: 'INFP',
@@ -73,7 +77,7 @@ export const seedPersonalityTest = async () => {
           'Guidé par des valeurs fortes, motivé par la créativité et le sens.',
         strengths: ['Empathique', 'Créatif', 'Loyal'],
         weaknesses: ['Trop sensible', 'Fuit le conflit'],
-        recommendedJobs: ['Rédacteur', 'Designer', 'Psychologue'],
+        suggestedSectors: ['Création de contenu', 'Design', 'Accompagnement'],
       },
       {
         key: 'ENFJ',
@@ -82,11 +86,7 @@ export const seedPersonalityTest = async () => {
           'Charismatique et altruiste, aide les autres à grandir et à coopérer efficacement.',
         strengths: ['Sociable', 'Inspirant', 'Organisé'],
         weaknesses: ['Trop impliqué', 'Besoin de reconnaissance'],
-        recommendedJobs: [
-          'Formateur',
-          'Manager RH',
-          'Responsable communication',
-        ],
+        suggestedSectors: ['Formation', 'Ressources humaines', 'Communication'],
       },
       {
         key: 'ENFP',
@@ -95,7 +95,11 @@ export const seedPersonalityTest = async () => {
           'Énergique et imaginatif, aime l’innovation et le contact humain.',
         strengths: ['Créatif', 'Curieux', 'Chaleureux'],
         weaknesses: ['Désorganisé', 'Facilement distrait'],
-        recommendedJobs: ['Publicitaire', 'Entrepreneur', 'Community Manager'],
+        suggestedSectors: [
+          'Marketing',
+          'Entrepreneuriat',
+          'Communication digitale',
+        ],
       },
       {
         key: 'ISTJ',
@@ -104,7 +108,7 @@ export const seedPersonalityTest = async () => {
           'Fiable et méthodique, aime les environnements structurés et les faits concrets.',
         strengths: ['Responsable', 'Pragmatique', 'Ponctuel'],
         weaknesses: ['Rigide', 'Peu flexible'],
-        recommendedJobs: ['Comptable', 'Auditeur', 'Chef de projet technique'],
+        suggestedSectors: ['Finance', 'Audit', 'Gestion de projet'],
       },
       {
         key: 'ISFJ',
@@ -113,7 +117,7 @@ export const seedPersonalityTest = async () => {
           'Attentionné, loyal et consciencieux, aime rendre service et apporter du soutien.',
         strengths: ['Empathique', 'Patient', 'Fiable'],
         weaknesses: ['Réservé', 'Réticent au changement'],
-        recommendedJobs: ['Infirmier', 'Enseignant', 'RH'],
+        suggestedSectors: ['Santé', 'Education', 'Ressources humaines'],
       },
       {
         key: 'ESTJ',
@@ -122,7 +126,7 @@ export const seedPersonalityTest = async () => {
           'Organisé et franc, excelle dans la gestion et la mise en œuvre de plans concrets.',
         strengths: ['Efficace', 'Décisif', 'Structuré'],
         weaknesses: ['Autoritaire', 'Rigide'],
-        recommendedJobs: ['Manager', 'Chef de service', 'Administrateur'],
+        suggestedSectors: ['Management', 'Administration', 'Opérations'],
       },
       {
         key: 'ESFJ',
@@ -131,7 +135,11 @@ export const seedPersonalityTest = async () => {
           'Sociable et attentif aux besoins des autres, cherche l’harmonie et la coopération.',
         strengths: ['Soutenant', 'Fiable', 'Sociable'],
         weaknesses: ['Besoin d’approbation', 'Trop conciliant'],
-        recommendedJobs: ['Assistant social', 'RH', 'Enseignant'],
+        suggestedSectors: [
+          'Action sociale',
+          'Ressources humaines',
+          'Education',
+        ],
       },
       {
         key: 'ISTP',
@@ -140,7 +148,7 @@ export const seedPersonalityTest = async () => {
           'Calme et logique, aime résoudre les problèmes concrets avec ses mains ou ses outils.',
         strengths: ['Pragmatique', 'Indépendant', 'Curieux'],
         weaknesses: ['Impulsif', 'Réservé'],
-        recommendedJobs: ['Technicien', 'Développeur', 'Mécanicien'],
+        suggestedSectors: ['Technique', 'Informatique', 'Maintenance'],
       },
       {
         key: 'ISFP',
@@ -149,7 +157,7 @@ export const seedPersonalityTest = async () => {
           'Créatif et sensible, cherche l’harmonie et la beauté dans son travail.',
         strengths: ['Créatif', 'Empathique', 'Adaptable'],
         weaknesses: ['Indécis', 'Introverti'],
-        recommendedJobs: ['Designer', 'Artisan', 'Photographe'],
+        suggestedSectors: ['Design', 'Artisanat', 'Image et audiovisuel'],
       },
       {
         key: 'ESTP',
@@ -158,7 +166,7 @@ export const seedPersonalityTest = async () => {
           'Aventurier et pragmatique, aime passer à l’action et vivre l’instant présent.',
         strengths: ['Audacieux', 'Énergique', 'Orienté résultats'],
         weaknesses: ['Impulsif', 'Impatient'],
-        recommendedJobs: ['Commercial', 'Entrepreneur', 'Coach sportif'],
+        suggestedSectors: ['Commerce', 'Entrepreneuriat', 'Sport'],
       },
       {
         key: 'ESFP',
@@ -167,7 +175,7 @@ export const seedPersonalityTest = async () => {
           'Chaleureux et expressif, aime divertir et motiver les autres.',
         strengths: ['Sociable', 'Optimiste', 'Spontané'],
         weaknesses: ['Désorganisé', 'Émotif'],
-        recommendedJobs: ['Animateur', 'Vendeur', 'Comédien'],
+        suggestedSectors: ['Animation', 'Commerce', 'Arts vivants'],
       },
     ].map((profile) => ({
       ...profile,

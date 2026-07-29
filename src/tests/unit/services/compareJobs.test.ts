@@ -35,8 +35,7 @@ const createBilan = (userId: mongoose.Types.ObjectId) =>
       profileSummary: 'Résumé',
       keyStrengths: ['Analyse'],
       improvementAxes: [],
-      recommendedEnvironments: [],
-      recommendedJobs: [],
+      recommendedSectors: [],
       actionPlan: [],
     },
   });

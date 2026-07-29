@@ -31,14 +31,6 @@ interface ArchetypeSection {
   description: string;
 }
 
-interface RecommendedJob {
-  id: string;
-  title: string;
-  description?: string;
-  sector?: string;
-  score: number;
-}
-
 export interface ConclusionSection {
   archetype: ArchetypeSection;
 
@@ -46,8 +38,7 @@ export interface ConclusionSection {
   keyStrengths: string[];
   improvementAxes: string[];
 
-  recommendedEnvironments: string[];
-  recommendedJobs: RecommendedJob[];
+  recommendedSectors: string[];
 
   actionPlan: string[];
 }
@@ -60,8 +51,7 @@ export interface BilanCompetenceDocument extends Document {
   // audit / recalcul
   rawAnswers: {
     questionCode: string;
-    valueNumber?: number | null;
-    valueText?: string | null;
+    valueNumber: number;
   }[];
 
   scores: ScoreMaps;
@@ -115,17 +105,6 @@ const ArchetypeSchema = new Schema(
   { _id: false }
 );
 
-const RecommendedJobSchema = new Schema(
-  {
-    id: { type: String, required: true },
-    title: { type: String, required: true },
-    description: { type: String },
-    sector: { type: String },
-    score: { type: Number, required: true },
-  },
-  { _id: false }
-);
-
 const ConclusionSchema = new Schema(
   {
     archetype: { type: ArchetypeSchema, required: true },
@@ -134,8 +113,7 @@ const ConclusionSchema = new Schema(
     keyStrengths: { type: [String], default: [] },
     improvementAxes: { type: [String], default: [] },
 
-    recommendedEnvironments: { type: [String], default: [] },
-    recommendedJobs: { type: [RecommendedJobSchema], default: [] },
+    recommendedSectors: { type: [String], default: [] },
 
     actionPlan: { type: [String], default: [] },
   },
@@ -150,8 +128,7 @@ const BilanCompetenceSchema = new Schema(
     rawAnswers: [
       {
         questionCode: { type: String, required: true },
-        valueNumber: { type: Number },
-        valueText: { type: String },
+        valueNumber: { type: Number, required: true, min: 1, max: 5 },
       },
     ],
 

@@ -11,6 +11,7 @@ import { PersonalityProfile } from '@/models/PersonalityProfile';
 import { PersonalityQuestion } from '@/models/PersonalityQuestion';
 import PersonalityTest from '@/models/PersonalityTest';
 import { PersonalityVersion } from '@/models/PersonalityVersion';
+import { RecommendationProfile } from '@/models/RecommendationProfile';
 import { RomeAppellation } from '@/models/RomeAppellation';
 import { RomeMetier } from '@/models/RomeMetier';
 import { RomeSyncRun } from '@/models/RomeSyncRun';
@@ -128,7 +129,7 @@ const serializePersonalityVersion = async (versionDoc: {
       description: profile.description,
       strengths: profile.strengths,
       weaknesses: profile.weaknesses,
-      recommendedJobs: profile.recommendedJobs,
+      suggestedSectors: profile.suggestedSectors,
       isActive: profile.isActive,
     })),
   };
@@ -371,26 +372,28 @@ export const getUserAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const [user, personalityTests, bilans, swipeStats] = await Promise.all([
-      User.findById(req.params.id).select(USER_ADMIN_FIELDS).lean(),
-      PersonalityTest.find({ userId: req.params.id })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .lean(),
-      BilanCompetence.find({ user: req.params.id })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .lean(),
-      Swipe.aggregate([
-        { $match: { userId: new Types.ObjectId(req.params.id) } },
-        {
-          $group: {
-            _id: '$action',
-            count: { $sum: 1 },
+    const [user, personalityTests, bilans, recommendationProfile, swipeStats] =
+      await Promise.all([
+        User.findById(req.params.id).select(USER_ADMIN_FIELDS).lean(),
+        PersonalityTest.find({ userId: req.params.id })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        BilanCompetence.find({ user: req.params.id })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        RecommendationProfile.findOne({ user: req.params.id }).lean(),
+        Swipe.aggregate([
+          { $match: { userId: new Types.ObjectId(req.params.id) } },
+          {
+            $group: {
+              _id: '$action',
+              count: { $sum: 1 },
+            },
           },
-        },
-      ]),
-    ]);
+        ]),
+      ]);
 
     if (!user) {
       res.status(404).json({ message: 'User not found' });
@@ -415,7 +418,7 @@ export const getUserAdmin = async (
         description: test.description,
         traits: test.traits,
         weaknesses: test.weaknesses,
-        motivationProfile: test.motivationProfile,
+        suggestedSectors: test.suggestedSectors,
         createdAt: test.createdAt,
       })),
       bilans: bilans.map((bilan) => ({
@@ -425,8 +428,27 @@ export const getUserAdmin = async (
         archetype: bilan.conclusion?.archetype,
         profileSummary: bilan.conclusion?.profileSummary,
         keyStrengths: bilan.conclusion?.keyStrengths ?? [],
-        recommendedJobs: bilan.conclusion?.recommendedJobs ?? [],
+        recommendedSectors: bilan.conclusion?.recommendedSectors ?? [],
       })),
+      recommendationProfile: recommendationProfile
+        ? {
+            unlocked: recommendationProfile.unlocked,
+            completedSources: recommendationProfile.completedSources,
+            missingSources: recommendationProfile.missingSources,
+            sectors: recommendationProfile.sectors.slice(0, 5),
+            matchedJobs: recommendationProfile.matchedJobs
+              .slice(0, 5)
+              .map((job) => ({
+                id: job.jobId.toString(),
+                code: job.code,
+                title: job.title,
+                sector: job.sector,
+                score: job.score,
+                reasons: job.reasons,
+              })),
+            recalculatedAt: recommendationProfile.recalculatedAt,
+          }
+        : null,
       swipes: {
         likes: swipes.like ?? 0,
         dislikes: swipes.dislike ?? 0,
@@ -645,7 +667,7 @@ export const createTemplateAdmin = async (
         description?: string;
         strengths?: string[];
         weaknesses?: string[];
-        recommendedJobs?: string[];
+        suggestedSectors?: string[];
       }>;
     };
 
@@ -819,7 +841,7 @@ export const duplicateTemplateAdmin = async (
           description: profile.description,
           strengths: profile.strengths,
           weaknesses: profile.weaknesses,
-          recommendedJobs: profile.recommendedJobs,
+          suggestedSectors: profile.suggestedSectors,
           isActive: profile.isActive,
         }))
       );

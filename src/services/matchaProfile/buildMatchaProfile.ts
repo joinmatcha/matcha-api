@@ -4,9 +4,11 @@ import {
   BilanCompetence,
   BilanCompetenceDocument,
 } from '@/models/BilanCompetence';
+import { MatchingDecision } from '@/models/MatchingDecision';
 import PersonalityTest from '@/models/PersonalityTest';
 import User from '@/models/User';
 import { WorkStyleResult } from '@/models/WorkStyleResult';
+import { buildProfileMatching } from '@/services/jobs/profileMatching';
 import {
   TopLikedJobSummary,
   getTopLikedJobsForUser,
@@ -18,6 +20,7 @@ type MatchaProfileRoute =
   | 'BilanIntro'
   | 'PersonalityIntro'
   | 'WorkStyleIntro'
+  | 'JobMatching'
   | 'JobCompare'
   | 'CareerPreferences';
 
@@ -49,6 +52,7 @@ interface MatchaProfileNextAction {
     | 'start_bilan'
     | 'start_personality'
     | 'start_work_style'
+    | 'start_matching'
     | 'compare_jobs'
     | 'view_liked_jobs';
   label: string;
@@ -76,8 +80,16 @@ export interface MatchaProfileSummary {
     sectors: string[];
   };
   tests: MatchaProfileTestCard[];
-  recommendedJobs: MatchaProfileJob[];
+  matchedJobs: MatchaProfileJob[];
   likedJobs: MatchaProfileJob[];
+  matchingStatus: {
+    unlocked: boolean;
+    total: number;
+    remaining: number;
+    completed: boolean;
+    liked: number;
+    disliked: number;
+  };
   nextBestAction: MatchaProfileNextAction;
 }
 
@@ -218,8 +230,10 @@ function buildStrongSignals({
     .slice(0, 5);
 }
 
-function formatRecommendedJobs(bilan: BilanLike | null): MatchaProfileJob[] {
-  return (bilan?.conclusion.recommendedJobs ?? []).slice(0, 3).map((job) => ({
+function formatRecommendedJobs(
+  jobs: Awaited<ReturnType<typeof buildProfileMatching>>['jobs']
+): MatchaProfileJob[] {
+  return jobs.slice(0, 10).map((job) => ({
     id: job.id,
     title: job.title,
     sector: job.sector,
@@ -242,12 +256,12 @@ function buildNextAction({
   hasBilan,
   hasPersonality,
   hasWorkStyle,
-  recommendedJobs,
+  matchedJobs,
 }: {
   hasBilan: boolean;
   hasPersonality: boolean;
   hasWorkStyle: boolean;
-  recommendedJobs: MatchaProfileJob[];
+  matchedJobs: MatchaProfileJob[];
 }): MatchaProfileNextAction {
   if (!hasBilan) {
     return {
@@ -273,13 +287,11 @@ function buildNextAction({
     };
   }
 
-  const jobIds = recommendedJobs.map((job) => job.id).filter(Boolean);
-  if (jobIds.length >= 2) {
+  if (matchedJobs.length > 0) {
     return {
-      type: 'compare_jobs',
-      label: 'Comparer mes métiers',
-      route: 'JobCompare',
-      jobIds: jobIds.slice(0, 3),
+      type: 'start_matching',
+      label: 'Découvrir mes matchs métier',
+      route: 'JobMatching',
     };
   }
 
@@ -349,7 +361,7 @@ export async function buildMatchaProfile(
   if (!user) return null;
 
   const userObjectId = new Types.ObjectId(userId);
-  const [bilan, personality, workStyle, preferences, topLikedJobs] =
+  const [bilan, personality, workStyle, preferences, topLikedJobs, matching] =
     await Promise.all([
       BilanCompetence.findOne({ user: userObjectId })
         .sort({ createdAt: -1 })
@@ -363,6 +375,7 @@ export async function buildMatchaProfile(
         .lean<WorkStyleLike | null>(),
       computePreferences(userId),
       getTopLikedJobsForUser(userId, 5),
+      buildProfileMatching(userId, { limit: 10, minScore: 15 }),
     ]);
 
   const hasBilan = Boolean(bilan);
@@ -387,7 +400,7 @@ export async function buildMatchaProfile(
     ...preferences.topTags.map((item) => item.key),
   ]);
   const environments = unique([
-    ...(bilan?.conclusion.recommendedEnvironments ?? []),
+    ...(bilan?.conclusion.recommendedSectors ?? []),
     ...mapSubdomainsToLabels(
       'work_condition',
       bilan?.investigation.topWorkConditions ?? []
@@ -396,11 +409,34 @@ export async function buildMatchaProfile(
     ...preferences.topWorkConditions.map((item) => item.key),
   ]);
   const sectors = unique(
-    preferences.topSectors.map((item) => item.key),
-    5
+    [
+      ...matching.sectors.map((item) => item.label),
+      ...preferences.topSectors.map((item) => item.key),
+    ],
+    8
   );
 
-  const recommendedJobs = formatRecommendedJobs(bilan);
+  const matchedJobs = matching.unlocked
+    ? formatRecommendedJobs(matching.jobs)
+    : [];
+  const matchingJobIds = matching.jobs.map((job) => new Types.ObjectId(job.id));
+  const matchingDecisions =
+    matching.unlocked && matchingJobIds.length
+      ? await MatchingDecision.find({
+          userId: userObjectId,
+          jobId: { $in: matchingJobIds },
+        }).lean()
+      : [];
+  const matchingRemaining = Math.max(
+    matching.jobs.length - matchingDecisions.length,
+    0
+  );
+  const matchingLiked = matchingDecisions.filter(
+    (decision) => decision.action === 'like'
+  ).length;
+  const matchingDisliked = matchingDecisions.filter(
+    (decision) => decision.action === 'dislike'
+  ).length;
   const likedJobs = formatLikedJobs(topLikedJobs);
   const completedCount = [hasBilan, hasPersonality, hasWorkStyle].filter(
     Boolean
@@ -451,7 +487,7 @@ export async function buildMatchaProfile(
         label: 'Auto-évaluation',
         title: bilan?.conclusion.archetype.title ?? 'À compléter',
         description: hasBilan
-          ? 'Forces, valeurs, environnements et métiers recommandés.'
+          ? 'Forces, valeurs et secteurs à explorer.'
           : 'Le socle principal pour comprendre tes pistes métier.',
         completed: hasBilan,
       },
@@ -474,13 +510,24 @@ export async function buildMatchaProfile(
         completed: hasWorkStyle,
       },
     ],
-    recommendedJobs,
+    matchedJobs,
     likedJobs,
+    matchingStatus: {
+      unlocked: matching.unlocked,
+      total: matching.jobs.length,
+      remaining: matchingRemaining,
+      completed:
+        matching.unlocked &&
+        matching.jobs.length > 0 &&
+        matchingRemaining === 0,
+      liked: matchingLiked,
+      disliked: matchingDisliked,
+    },
     nextBestAction: buildNextAction({
       hasBilan,
       hasPersonality,
       hasWorkStyle,
-      recommendedJobs,
+      matchedJobs,
     }),
   };
 }

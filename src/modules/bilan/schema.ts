@@ -5,8 +5,7 @@ export const submitAnswersSchema = z.object({
   answers: z.array(
     z.object({
       questionCode: z.string(),
-      valueNumber: z.number().optional(),
-      valueText: z.string().optional(),
+      valueNumber: z.number().min(1).max(5),
     })
   ),
 });

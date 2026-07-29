@@ -80,35 +80,37 @@ export const generateConclusion = async ({
       .join('\n') ||
     'Cette auto-évaluation met en évidence vos axes de progression et constitue une base de réflexion pour votre évolution professionnelle.';
 
-  const recommendedJobs = await findRecommendedJobs({
-    interestsProfile,
-    competenceStrengths,
-    softSkillStrengths,
-    topValues,
-    topWorkConditions,
-  });
+  const sectorCandidates = await findRecommendedJobs(
+    {
+      interestsProfile,
+      competenceStrengths,
+      softSkillStrengths,
+      topValues,
+      topWorkConditions,
+    },
+    12,
+    40
+  );
 
-  const recommendedEnvironments = [
+  const recommendedSectors = [
     ...new Set(
-      recommendedJobs
+      sectorCandidates
         .map((job: RecommendedJob) => job.sector)
         .filter((sector): sector is string => Boolean(sector))
     ),
-  ];
+  ].slice(0, 6);
 
   const conclusion: BilanConclusionDTO = {
     archetype,
     profileSummary,
     keyStrengths: mappedStrengths,
     improvementAxes: mappedImprovementAxes,
-    recommendedEnvironments,
-    recommendedJobs,
+    recommendedSectors,
     actionPlan: [
-      'Sélectionner 1 à 2 pistes métiers et approfondir leur réalité (missions, compétences, formations).',
-      'Identifier les écarts entre vos compétences actuelles et celles requises.',
-      'Évaluer la faisabilité concrète de chaque piste (formation, mobilité, rythme, impact financier).',
-      'Construire un plan de montée en compétences ciblé (formations, projets, expériences).',
-      'Échanger avec des professionnels du secteur pour confronter votre projet à la réalité.',
+      'Identifier les secteurs qui reviennent dans cette synthèse et ceux qui suscitent une vraie curiosité.',
+      'Compléter les autres tests pour préciser le type de cadre, de rythme et de missions adaptées.',
+      'Swiper des métiers pour apprendre à Matcha ce qui attire ou bloque concrètement.',
+      'Comparer les métiers matchés uniquement une fois le profil complet construit.',
     ],
   };
 

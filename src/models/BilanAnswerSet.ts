@@ -2,8 +2,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface BilanAnswer {
   questionCode: string; // ex: "C1"
-  valueNumber?: number | null; // 1–5 si likert
-  valueText?: string | null; // texte libre si open_text
+  valueNumber: number; // 1-5
 }
 
 export interface BilanAnswerSetDocument extends Document {
@@ -16,8 +15,7 @@ export interface BilanAnswerSetDocument extends Document {
 const BilanAnswerSchema = new Schema<BilanAnswer>(
   {
     questionCode: { type: String, required: true },
-    valueNumber: { type: Number, required: false },
-    valueText: { type: String, required: false },
+    valueNumber: { type: Number, required: true, min: 1, max: 5 },
   },
   { _id: false }
 );

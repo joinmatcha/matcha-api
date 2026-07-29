@@ -48,7 +48,7 @@ describe('Personality service', () => {
       description: 'Desc',
       strengths: ['Leadership'],
       weaknesses: ['Rigidite'],
-      recommendedJobs: ['Manager'],
+      suggestedSectors: ['Manager'],
       isActive: true,
     });
 
