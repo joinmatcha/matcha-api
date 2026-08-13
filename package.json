@@ -25,6 +25,7 @@
     "sync:rome": "if [ -f dist/scripts/sync-rome-jobs.js ]; then node dist/scripts/sync-rome-jobs.js; else ts-node -r tsconfig-paths/register src/scripts/sync-rome-jobs.ts; fi",
     "sync:rome:cron": "if [ -f dist/scripts/sync-rome-jobs.js ]; then node dist/scripts/sync-rome-jobs.js --cron; else ts-node -r tsconfig-paths/register src/scripts/sync-rome-jobs.ts --cron; fi",
     "sync:market": "if [ -f dist/scripts/sync-market-stats.js ]; then node dist/scripts/sync-market-stats.js; else ts-node -r tsconfig-paths/register src/scripts/sync-market-stats.ts; fi",
+    "sync:jobs": "yarn sync:rome && yarn sync:market",
     "remap:rome": "if [ -f dist/scripts/remap-rome-jobs.js ]; then node dist/scripts/remap-rome-jobs.js; else ts-node -r tsconfig-paths/register src/scripts/remap-rome-jobs.ts; fi",
     "remap:market": "if [ -f dist/scripts/remap-market-stats.js ]; then node dist/scripts/remap-market-stats.js; else ts-node -r tsconfig-paths/register src/scripts/remap-market-stats.ts; fi",
     "admin:promote": "if [ -f dist/scripts/promote-admin.js ]; then node dist/scripts/promote-admin.js; else ts-node -r tsconfig-paths/register src/scripts/promote-admin.ts; fi",
