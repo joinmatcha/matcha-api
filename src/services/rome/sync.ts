@@ -57,6 +57,8 @@ type RomeAppellationUpdate = NonNullable<
   ReturnType<typeof buildRomeAppellationUpdate>
 >;
 
+const bulkWriteBatchSize = 100;
+
 let inProcessSync: Promise<void> | undefined;
 
 function groupAppellationsByMetier(appellations: RomeAppellationApi[]) {
@@ -108,6 +110,30 @@ function bulkWriteCounts(result: {
     upserted: result.upsertedCount ?? 0,
     modified: result.modifiedCount ?? 0,
   };
+}
+
+async function flushMetierOperations(
+  operations: AnyBulkWriteOperation<RomeMetierDocument>[]
+) {
+  if (operations.length === 0) {
+    return { upserted: 0, modified: 0 };
+  }
+
+  const result = await RomeMetier.bulkWrite(operations, { ordered: false });
+  operations.length = 0;
+  return bulkWriteCounts(result);
+}
+
+async function flushAppellationOperations(
+  operations: AnyBulkWriteOperation<RomeAppellationUpdate>[]
+) {
+  if (operations.length === 0) {
+    return { upserted: 0, modified: 0 };
+  }
+
+  const result = await RomeAppellation.bulkWrite(operations, { ordered: false });
+  operations.length = 0;
+  return bulkWriteCounts(result);
 }
 
 async function deactivateMissing(
@@ -186,6 +212,8 @@ export class RomeSyncService {
     const client = new RomeClient();
     const now = new Date();
     const metierOperations: AnyBulkWriteOperation<RomeMetierDocument>[] = [];
+    let upsertedMetiers = 0;
+    let updatedMetiers = 0;
 
     try {
       await updateRun(runId, {
@@ -305,6 +333,16 @@ export class RomeSyncService {
           },
         });
 
+        if (metierOperations.length >= bulkWriteBatchSize) {
+          const counts = await flushMetierOperations(metierOperations);
+          upsertedMetiers += counts.upserted;
+          updatedMetiers += counts.modified;
+          await updateRun(runId, {
+            upsertedMetiers,
+            updatedMetiers,
+          });
+        }
+
         if ((index + 1) % 25 === 0 || index + 1 === metierCodes.length) {
           onProgress?.({
             step: 'fetch_metiers',
@@ -336,13 +374,12 @@ export class RomeSyncService {
       });
 
       if (metierOperations.length > 0) {
-        const result = await RomeMetier.bulkWrite(metierOperations, {
-          ordered: false,
-        });
-        const counts = bulkWriteCounts(result);
+        const counts = await flushMetierOperations(metierOperations);
+        upsertedMetiers += counts.upserted;
+        updatedMetiers += counts.modified;
         await updateRun(runId, {
-          upsertedMetiers: counts.upserted,
-          updatedMetiers: counts.modified,
+          upsertedMetiers,
+          updatedMetiers,
         });
       }
 
@@ -353,31 +390,51 @@ export class RomeSyncService {
         metiers.map((metier) => [metier.code, metier._id])
       );
 
-      const appellationOperations = appellations
-        .map((appellation) =>
-          buildRomeAppellationUpdate(appellation, metierIdByCode, now)
-        )
-        .filter((appellation): appellation is RomeAppellationUpdate =>
-          Boolean(appellation)
-        )
-        .map((appellation) => ({
+      const appellationOperations: AnyBulkWriteOperation<RomeAppellationUpdate>[] =
+        [];
+      let upsertedAppellations = 0;
+      let updatedAppellations = 0;
+
+      for (const appellationApi of appellations) {
+        const appellation = buildRomeAppellationUpdate(
+          appellationApi,
+          metierIdByCode,
+          now
+        );
+
+        if (!appellation) continue;
+
+        appellationOperations.push({
           updateOne: {
             filter: { code: appellation.code },
             update: { $set: appellation },
             upsert: true,
           },
-        }));
+        });
+
+        if (appellationOperations.length >= bulkWriteBatchSize) {
+          const counts = await flushAppellationOperations(
+            appellationOperations
+          );
+          upsertedAppellations += counts.upserted;
+          updatedAppellations += counts.modified;
+          await updateRun(runId, {
+            upsertedAppellations,
+            updatedAppellations,
+          });
+        }
+      }
 
       if (appellationOperations.length > 0) {
-        const result = await RomeAppellation.bulkWrite(appellationOperations, {
-          ordered: false,
-        });
-        const counts = bulkWriteCounts(result);
-        await updateRun(runId, {
-          upsertedAppellations: counts.upserted,
-          updatedAppellations: counts.modified,
-        });
+        const counts = await flushAppellationOperations(appellationOperations);
+        upsertedAppellations += counts.upserted;
+        updatedAppellations += counts.modified;
       }
+
+      await updateRun(runId, {
+        upsertedAppellations,
+        updatedAppellations,
+      });
 
       await updateRun(runId, { currentStep: 'deactivate_missing' });
       onProgress?.({
