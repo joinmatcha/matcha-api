@@ -30,23 +30,35 @@ export const seedBilan = async (options: SeedBilanOptions = {}) => {
 
   await ensureBilanQuestionVersionedIndexes();
 
-  const existingQuestions = await BilanQuestion.countDocuments({ version });
+  await BilanQuestion.bulkWrite(
+    seedSet.questions.map((question) => ({
+      updateOne: {
+        filter: { version, code: question.code },
+        update: {
+          $set: {
+            ...question,
+            version,
+            isActive: question.isActive ?? true,
+          },
+        },
+        upsert: true,
+      },
+    })),
+    { ordered: false }
+  );
 
-  if (existingQuestions === 0) {
-    await BilanQuestion.insertMany(
-      seedSet.questions.map((question) => ({
-        ...question,
-        version,
-      }))
-    );
-    console.log(
-      `✅ Questions de l'auto-évaluation v${version} seedées (${seedSet.questions.length} questions)`
-    );
-  } else {
-    console.log(
-      `ℹ️ Questions de l'auto-évaluation v${version} déjà existantes.`
-    );
-  }
+  await BilanQuestion.updateMany(
+    {
+      version,
+      code: { $nin: seedSet.questions.map((question) => question.code) },
+      isActive: true,
+    },
+    { $set: { isActive: false } }
+  );
+
+  console.log(
+    `✅ Questions de l'auto-évaluation v${version} synchronisées (${seedSet.questions.length} questions)`
+  );
 
   await BilanVersion.updateMany(
     { version: { $ne: version }, isActive: true },
@@ -55,12 +67,10 @@ export const seedBilan = async (options: SeedBilanOptions = {}) => {
   await BilanVersion.updateOne(
     { version },
     {
-      $setOnInsert: {
+      $set: {
         version,
         title: seedSet.title,
         description: seedSet.description,
-      },
-      $set: {
         isActive: true,
         status: 'active',
       },

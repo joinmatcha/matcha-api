@@ -25,52 +25,10 @@ const parseVersion = async () => {
 
 async function seedWorkStyle() {
   const version = await parseVersion();
-  const { WorkStyleQuestion } = await import('@/models/WorkStyleQuestion');
-  const { WorkStyleVersion } = await import('@/models/WorkStyleVersion');
-  const { workStyleProfiles, workStyleQuestions } =
-    await import('@/seeds/workStyleSeed');
+  const { seedWorkStyle: runSeedWorkStyle } =
+    await import('@/seeds/seedWorkStyle');
 
-  await WorkStyleVersion.updateMany(
-    { version: { $ne: version }, isActive: true },
-    { $set: { isActive: false, status: 'archived' } }
-  );
-
-  const versionDoc = await WorkStyleVersion.findOneAndUpdate(
-    { version },
-    {
-      $set: {
-        title: `Style professionnel v${version}`,
-        summary:
-          'Test court pour identifier les environnements de travail qui correspondent le mieux à l’utilisateur.',
-        isActive: true,
-        status: 'active',
-        profiles: workStyleProfiles,
-      },
-    },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-
-  const existingQuestions = await WorkStyleQuestion.countDocuments({ version });
-  if (existingQuestions === 0) {
-    await WorkStyleQuestion.insertMany(
-      workStyleQuestions.map((question) => ({
-        ...question,
-        version,
-        versionId: versionDoc._id,
-      }))
-    );
-  } else {
-    await WorkStyleQuestion.updateMany(
-      { version },
-      { $set: { versionId: versionDoc._id } }
-    );
-  }
-
-  console.log(
-    `✅ Style professionnel v${version} actif avec ${await WorkStyleQuestion.countDocuments(
-      { version }
-    )} questions.`
-  );
+  await runSeedWorkStyle({ version });
 }
 
 (async () => {
@@ -81,7 +39,7 @@ async function seedWorkStyle() {
     await seedWorkStyle();
   } catch (error) {
     console.error('❌ Erreur lors du seed style professionnel :', error);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await disconnectDB();
   }

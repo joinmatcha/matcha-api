@@ -34,20 +34,22 @@ function getVersionArg() {
 }
 
 (async () => {
+  const { connectDB, disconnectDB } = await import('@/config/db');
+
   try {
     const version = getVersionArg();
     getBilanQuestionSeedSet(version);
 
-    const { connectDB } = await import('@/config/db');
     const { seedBilan } = await import('@/seeds/seedBilan');
 
     await connectDB();
     await seedBilan({ version });
 
     console.log(`🎉 Auto-évaluation v${version} seeded successfully`);
-    process.exit(0);
   } catch (err) {
     console.error('❌ Erreur lors du seed bilan :', err);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    await disconnectDB();
   }
 })();
