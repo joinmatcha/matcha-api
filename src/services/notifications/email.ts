@@ -3,11 +3,10 @@ import nodemailer, { SentMessageInfo, Transporter } from 'nodemailer';
 import { env } from '@/config/env';
 import { logger } from '@/utils/logger';
 
-const isProduction = env.NODE_ENV === 'production';
+const hasSmtpConfig = Boolean(env.SMTP_HOST && env.SMTP_PASS);
 const APP_NAME = env.APP_NAME;
 const SMTP_USER = env.SMTP_USER;
 const API_URL = env.API_URL;
-const FRONTEND_URL = env.FRONTEND_URL;
 
 const brand = {
   green: '#2A7F68',
@@ -33,7 +32,7 @@ interface EmailTemplateOptions {
 }
 
 const getTransporter = async (): Promise<Transporter> => {
-  if (isProduction) {
+  if (hasSmtpConfig) {
     return nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
@@ -55,7 +54,7 @@ const getTransporter = async (): Promise<Transporter> => {
 };
 
 const logPreviewUrl = (info: SentMessageInfo): void => {
-  if (!isProduction) {
+  if (!hasSmtpConfig) {
     logger.info('email_preview_url', {
       previewUrl: nodemailer.getTestMessageUrl(info),
     });
@@ -259,7 +258,7 @@ export const sendResetPasswordEmail = async (
   to: string,
   token: string
 ): Promise<void> => {
-  const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
+  const resetLink = `${API_URL}/api/auth/password-reset/redirect?token=${encodeURIComponent(token)}`;
 
   await sendTemplatedEmail({
     to,
@@ -275,6 +274,25 @@ export const sendResetPasswordEmail = async (
       secondaryText: 'Ce lien est valable pendant 15 minutes.',
       warningText:
         'Si tu n’as pas demandé cette réinitialisation, aucune action n’est nécessaire.',
+    },
+  });
+};
+
+export const sendPasswordChangedEmail = async (to: string): Promise<void> => {
+  await sendTemplatedEmail({
+    to,
+    subject: 'Ton mot de passe a été modifié',
+    template: {
+      preheader:
+        'Confirmation de modification du mot de passe de ton compte Matcha.',
+      eyebrow: 'Sécurité du compte',
+      title: 'Mot de passe modifié',
+      intro:
+        'Le mot de passe de ton compte Matcha vient d’être modifié. Si tu es bien à l’origine de cette action, tu n’as rien à faire.',
+      ctaLabel: 'Contacter Matcha',
+      ctaUrl: `mailto:${SMTP_USER}`,
+      warningText:
+        'Si tu n’es pas à l’origine de cette modification, demande immédiatement une réinitialisation depuis l’application.',
     },
   });
 };

@@ -7,13 +7,23 @@ import {
   getMe,
   getPreferences,
   getUserById,
+  resendVerificationEmail,
   verifyEmail,
 } from '@/modules/users/controller';
-import { createUserSchema } from '@/modules/users/schema';
+import {
+  createUserSchema,
+  resendVerificationEmailSchema,
+} from '@/modules/users/schema';
 
 const router = express.Router();
 
 router.post('/', validate(createUserSchema), createUser);
+
+router.post(
+  '/resend-verification',
+  validate(resendVerificationEmailSchema),
+  resendVerificationEmail
+);
 
 router.get('/verify-email', verifyEmail);
 

@@ -17,6 +17,7 @@ import { SwipeQuota } from '@/models/SwipeQuota';
 import User from '@/models/User';
 import {
   sendEmailChangeVerification,
+  sendPasswordChangedEmail,
   sendSupportContactEmail,
 } from '@/services/notifications/email';
 import { UserProfile, UserProfileUpdateInput } from '@/types/user';
@@ -246,6 +247,8 @@ export const changePassword = async (
 
     user.passwordHash = await bcrypt.hash(newPassword, 10);
     await user.save();
+
+    await sendPasswordChangedEmail(user.email);
 
     res.status(200).json({ message: 'Password updated successfully' });
   } catch (err) {

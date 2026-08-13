@@ -7,6 +7,7 @@ dotenv.config({ path: '.env.test' });
 jest.mock('@/services/notifications/email', () => ({
   sendValidationEmail: jest.fn().mockResolvedValue(undefined),
   sendResetPasswordEmail: jest.fn().mockResolvedValue(undefined),
+  sendPasswordChangedEmail: jest.fn().mockResolvedValue(undefined),
   sendEmailChangeVerification: jest.fn().mockResolvedValue(undefined),
   sendSupportContactEmail: jest.fn().mockResolvedValue(undefined),
 }));

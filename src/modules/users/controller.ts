@@ -81,6 +81,42 @@ export const createUser = async (
   }
 };
 
+export const resendVerificationEmail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { email } = req.body as { email: string };
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user || user.isEmailVerified) {
+      res.status(200).json({
+        message:
+          'If this account requires verification, a new email has been sent.',
+      });
+      return;
+    }
+
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = hashToken(emailVerificationToken);
+    user.emailVerificationTokenExpires = new Date(Date.now() + 3600 * 1000);
+    await user.save();
+
+    if (process.env.NODE_ENV !== 'test') {
+      await sendValidationEmail(user.email, emailVerificationToken);
+    }
+
+    res.status(200).json({
+      message:
+        'If this account requires verification, a new email has been sent.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Get user by ID
  */

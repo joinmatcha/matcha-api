@@ -9,3 +9,7 @@ export const createUserSchema = z.object({
   password: passwordSchema,
   consentAccepted: z.literal(true),
 });
+
+export const resendVerificationEmailSchema = z.object({
+  email: z.string().email({ message: 'Invalid email format' }),
+});

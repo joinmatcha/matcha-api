@@ -64,7 +64,7 @@ describe('email notification templates', () => {
     expect(sendMail.mock.calls[0][0].html).toContain('Confirmer mon email');
   });
 
-  it('sends a reset password email pointing to the frontend reset page', async () => {
+  it('sends a reset password email pointing to the mobile redirect page', async () => {
     const { sendResetPasswordEmail } =
       await import('@/services/notifications/email');
 
@@ -74,7 +74,7 @@ describe('email notification templates', () => {
       expect.objectContaining({
         subject: 'Réinitialise ton mot de passe',
         html: expect.stringContaining(
-          'https://app.matcha.test/reset-password?token=reset-token'
+          'https://api.matcha.test/api/auth/password-reset/redirect?token=reset-token'
         ),
         text: expect.stringContaining(
           'Ce lien est valable pendant 15 minutes.'
