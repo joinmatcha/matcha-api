@@ -54,18 +54,22 @@ export class MarketStatsSyncService {
     let fetched = 0;
     let updated = 0;
 
-    const metiers = await RomeMetier.find({ isActive: true })
+    const total = limit
+      ? Math.min(await RomeMetier.countDocuments({ isActive: true }), limit)
+      : await RomeMetier.countDocuments({ isActive: true });
+    const metierCursor = RomeMetier.find({ isActive: true })
       .sort({ code: 1 })
       .limit(limit ?? 0)
       .select('_id code label')
-      .lean();
+      .lean()
+      .cursor();
 
     const report = (step: MarketSyncStep, currentCode?: string) => {
       options.onProgress?.({
         step,
         at: new Date(),
         startedAt,
-        total: metiers.length,
+        total,
         fetched,
         updated,
         errors: statsErrors.length,
@@ -75,7 +79,7 @@ export class MarketStatsSyncService {
 
     report('fetch_market_stats');
 
-    for (const metier of metiers) {
+    for await (const metier of metierCursor) {
       try {
         const salary = await callWithDelay(() =>
           client.getSalaryByRome(metier.code).catch((error) => {
@@ -167,7 +171,7 @@ export class MarketStatsSyncService {
 
     return {
       status: statsErrors.length > 0 ? 'partial_failure' : 'success',
-      total: metiers.length,
+      total,
       fetched,
       updated,
       errors: statsErrors,
