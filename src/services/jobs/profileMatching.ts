@@ -28,7 +28,15 @@ export type ProfileMatchJob = {
   reasons: string[];
 };
 
-const ALGORITHM_VERSION = 'profile-matching-v2';
+export const ALGORITHM_VERSION = 'profile-matching-v4';
+const SCORE_WEIGHTS = {
+  interests: 35,
+  sectors: 20,
+  skills: 25,
+  workConditions: 15,
+  confidence: 5,
+} as const;
+const SIGNAL_RANK_DECAY = [1, 0.85, 0.7, 0.55, 0.45, 0.35, 0.28, 0.22];
 
 export type ProfileMatchingSummary = {
   unlocked: boolean;
@@ -140,60 +148,169 @@ function buildJobText(job: JobLike) {
     .join(' ');
 }
 
+function rankedWeight(signal: WeightedSignal, index: number) {
+  return signal.weight * (SIGNAL_RANK_DECAY[index] ?? 0.18);
+}
+
+function weightedCoverageScore({
+  signals,
+  maxScore,
+  signalLimit,
+  matches,
+}: {
+  signals: WeightedSignal[];
+  maxScore: number;
+  signalLimit: number;
+  matches: (signal: WeightedSignal) => boolean;
+}) {
+  const scoredSignals = signals.slice(0, signalLimit).map((signal, index) => ({
+    signal,
+    weight: rankedWeight(signal, index),
+  }));
+  const totalWeight = scoredSignals.reduce((sum, item) => sum + item.weight, 0);
+  if (totalWeight <= 0) return { score: 0, matchedCount: 0 };
+
+  const matched = scoredSignals.filter(({ signal }) => matches(signal));
+  const matchedWeight = matched.reduce((sum, item) => sum + item.weight, 0);
+
+  return {
+    score: (matchedWeight / totalWeight) * maxScore,
+    matchedCount: matched.length,
+  };
+}
+
 export type JobScoringSignals = Omit<
   ProfileMatchingSummary,
   'jobs' | 'unlocked' | 'missingTests'
 >;
 
-export function scoreJobForProfile(
-  job: JobLike,
-  signals: JobScoringSignals
-): ProfileMatchJob {
-  const text = buildJobText(job);
+function matchesAnySectorSignal(job: JobLike, signals: WeightedSignal[]) {
   const sectorLabel = job.domain?.label ?? job.domain?.grandDomain?.label;
-  const reasons = new Set<string>();
-  let score = 0;
 
-  const riasecCodes = job.riasec?.codes ?? [];
-  for (const interest of signals.interests) {
-    if (riasecCodes.includes(interest.label)) {
-      score += interest.weight * 12;
-      reasons.add('Compatible avec tes intérêts dominants');
-    }
-  }
-
-  for (const sector of signals.sectors) {
-    const sectorMatch =
+  return signals.some(
+    (sector) =>
       includesNormalized(sectorLabel, sector.key) ||
       (job.sectors ?? []).some((item) =>
         includesNormalized(item.label, sector.key)
       ) ||
       (job.themes ?? []).some((item) =>
         includesNormalized(item.label, sector.key)
-      );
-    if (sectorMatch) {
-      score += sector.weight * 9;
-      reasons.add('Dans un secteur qui ressort de ton profil');
-    }
+      )
+  );
+}
+
+function matchesAnyProfileSkill(job: JobLike, signals: WeightedSignal[]) {
+  const text = buildJobText(job);
+
+  return signals.some((signal) => includesNormalized(text, signal.key));
+}
+
+function hasEnoughProfileEvidence(
+  job: JobLike,
+  signals: JobScoringSignals,
+  score: number
+) {
+  if (score <= 0) return false;
+  const riasecCodes = job.riasec?.codes ?? [];
+  const hasInterestMatch = signals.interests.some((interest) =>
+    riasecCodes.includes(interest.label)
+  );
+  if (!hasInterestMatch) return false;
+
+  return (
+    matchesAnySectorSignal(job, signals.sectors) ||
+    matchesAnyProfileSkill(job, signals.skills)
+  );
+}
+
+export function scoreJobForProfile(
+  job: JobLike,
+  signals: JobScoringSignals
+): ProfileMatchJob {
+  const scoredJob = computeJobScore(job, signals);
+
+  return hasEnoughProfileEvidence(job, signals, scoredJob.score)
+    ? scoredJob
+    : { ...scoredJob, score: 0, reasons: [] };
+}
+
+function computeJobScore(
+  job: JobLike,
+  signals: JobScoringSignals
+): ProfileMatchJob {
+  const text = buildJobText(job);
+  const sectorLabel = job.domain?.label ?? job.domain?.grandDomain?.label;
+  const reasons = new Set<string>();
+
+  const riasecCodes = job.riasec?.codes ?? [];
+  const interest = weightedCoverageScore({
+    signals: signals.interests,
+    maxScore: SCORE_WEIGHTS.interests,
+    signalLimit: 4,
+    matches: (signal) => riasecCodes.includes(signal.label),
+  });
+  if (interest.matchedCount > 0) {
+    reasons.add('Compatible avec tes intérêts dominants');
   }
 
-  for (const skill of signals.skills) {
-    if (includesNormalized(text, skill.key)) {
-      score += skill.weight * 5;
-      reasons.add('Mobilise des forces ou compétences proches des tiennes');
-    }
+  const sector = weightedCoverageScore({
+    signals: signals.sectors,
+    maxScore: SCORE_WEIGHTS.sectors,
+    signalLimit: 6,
+    matches: (signal) =>
+      includesNormalized(sectorLabel, signal.key) ||
+      (job.sectors ?? []).some((item) =>
+        includesNormalized(item.label, signal.key)
+      ) ||
+      (job.themes ?? []).some((item) =>
+        includesNormalized(item.label, signal.key)
+      ),
+  });
+  if (sector.matchedCount > 0) {
+    reasons.add('Dans un secteur qui ressort de ton profil');
   }
 
-  for (const condition of signals.workConditions) {
-    if (includesNormalized(text, condition.key)) {
-      score += condition.weight * 5;
-      reasons.add('Compatible avec ton style ou tes conditions de travail');
-    }
+  const skills = weightedCoverageScore({
+    signals: signals.skills,
+    maxScore: SCORE_WEIGHTS.skills,
+    signalLimit: 8,
+    matches: (signal) => includesNormalized(text, signal.key),
+  });
+  if (skills.matchedCount > 0) {
+    reasons.add('Mobilise des forces ou compétences proches des tiennes');
   }
 
-  if (job.transitions?.digital) score += 2;
-  if (job.transitions?.ecological) score += 2;
-  if ((job.skills ?? []).some((skill) => skill.isMain)) score += 2;
+  const workConditions = weightedCoverageScore({
+    signals: signals.workConditions,
+    maxScore: SCORE_WEIGHTS.workConditions,
+    signalLimit: 6,
+    matches: (signal) => includesNormalized(text, signal.key),
+  });
+  if (workConditions.matchedCount > 0) {
+    reasons.add('Compatible avec ton style ou tes conditions de travail');
+  }
+
+  const matchedDimensions = [
+    interest.score,
+    sector.score,
+    skills.score,
+    workConditions.score,
+  ].filter((score) => score > 0).length;
+  const confidenceScore =
+    matchedDimensions >= 4
+      ? SCORE_WEIGHTS.confidence
+      : matchedDimensions === 3
+        ? 3
+        : matchedDimensions === 2
+          ? 1
+          : 0;
+
+  const score =
+    interest.score +
+    sector.score +
+    skills.score +
+    workConditions.score +
+    confidenceScore;
 
   return {
     id: job._id.toString(),
@@ -379,7 +496,7 @@ export async function buildProfileMatching(
 export async function refreshRecommendationProfile(userId: string) {
   const matching = await buildProfileMatching(userId, {
     limit: 20,
-    minScore: 15,
+    minScore: 40,
   });
 
   const missingSources = matching.missingTests.map((test) =>
@@ -430,7 +547,7 @@ export async function getPersonalizedDeckJobs({
   const matching = await buildProfileMatching(userId, {
     excludedJobIds,
     limit,
-    minScore: 15,
+    minScore: 40,
   });
 
   return matching.jobs;

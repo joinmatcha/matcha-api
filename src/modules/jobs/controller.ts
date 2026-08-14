@@ -14,6 +14,7 @@ import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
 import { compareJobsForUser } from '@/services/jobs/compare';
 import {
+  ALGORITHM_VERSION,
   buildProfileMatching,
   getPersonalizedDeckJobs,
   refreshRecommendationProfile,
@@ -143,7 +144,7 @@ function formatMatchingProfileJob(
 
 async function getFreshRecommendationProfile(userId: string) {
   const profile = await RecommendationProfile.findOne({ user: userId }).lean();
-  if (profile) return profile;
+  if (profile?.algorithmVersion === ALGORITHM_VERSION) return profile;
 
   return refreshRecommendationProfile(userId);
 }
@@ -462,7 +463,7 @@ export const getRecommendedJobs = async (
 
     const matching = await buildProfileMatching(req.user.id, {
       limit: 20,
-      minScore: 15,
+      minScore: 40,
     });
 
     if (!matching.unlocked) {

@@ -375,7 +375,7 @@ export async function buildMatchaProfile(
         .lean<WorkStyleLike | null>(),
       computePreferences(userId),
       getTopLikedJobsForUser(userId, 5),
-      buildProfileMatching(userId, { limit: 10, minScore: 15 }),
+      buildProfileMatching(userId, { limit: 10, minScore: 40 }),
     ]);
 
   const hasBilan = Boolean(bilan);

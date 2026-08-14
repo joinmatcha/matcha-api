@@ -38,7 +38,13 @@ export const updateProfileSchema = z
     // Adresse
     addressStreet: z.string().optional(),
     addressCity: z.string().optional(),
-    addressPostalCode: z.string().optional(),
+    addressPostalCode: z
+      .string()
+      .trim()
+      .refine((value) => value === '' || /^\d{5}$/.test(value), {
+        message: 'Postal code must contain exactly 5 digits',
+      })
+      .optional(),
     addressCountry: z.string().optional(),
 
     // Géolocalisation

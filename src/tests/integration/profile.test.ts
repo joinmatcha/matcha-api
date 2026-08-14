@@ -161,6 +161,22 @@ describe('PATCH /api/profile', () => {
     );
   });
 
+  it('should reject invalid postal code', async () => {
+    const { token } = await createUserAndGetToken();
+
+    const res = await request(app)
+      .patch(BASE_URL)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ addressPostalCode: '75A0' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+
+    expect(
+      res.body.errors.some((e: any) => e.path?.includes('addressPostalCode'))
+    ).toBe(true);
+  });
+
   it('should reject invalid coordinates', async () => {
     const { token } = await createUserAndGetToken();
 
