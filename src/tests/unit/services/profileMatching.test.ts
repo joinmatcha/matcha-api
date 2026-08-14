@@ -113,6 +113,76 @@ describe('profile matching scoring', () => {
     );
   });
 
+  it('keeps partially compatible jobs below 100 when profile signals are broad', () => {
+    const broadMatch = job({
+      label: 'Agent commercial',
+      domain: { label: 'Publicité' },
+      riasec: { major: 'E', codes: ['RIASEC_E'] },
+      skills: [
+        {
+          label: 'communication organisation négociation marketing',
+          isMain: true,
+        },
+      ],
+      workContexts: [
+        {
+          label: 'salarié secteur privé cdi cdd autonomie équipe',
+        },
+      ],
+      themes: [{ label: 'Communication et marketing' }],
+      transitions: { digital: true, ecological: true },
+    });
+    const broadSignals: JobScoringSignals = {
+      interests: [
+        signal('RIASEC_E', 3.6),
+        signal('RIASEC_R', 2.4),
+        signal('RIASEC_C', 1.2),
+      ],
+      sectors: [
+        signal('Publicité', 3.6, ['Métiers likés']),
+        signal('Communication et marketing', 2.8, ['Métiers likés']),
+        signal('Production', 1.4),
+        signal('Assurance', 1.2),
+      ],
+      skills: [
+        signal('organisation', 5.5, ['Métiers likés']),
+        signal('communication', 5, ['Métiers likés']),
+        signal('marketing', 3.5, ['Métiers likés']),
+        signal('rigueur', 3.5, ['Métiers likés']),
+        signal('management', 2.4),
+        signal('analyse', 1.8),
+      ],
+      workConditions: [
+        signal('Salarié secteur privé CDI CDD', 4.5, ['Métiers likés']),
+        signal('autonomie', 1.6),
+        signal('terrain', 1.2),
+      ],
+    };
+
+    expect(scoreJobForProfile(broadMatch, broadSignals).score).toBeLessThan(
+      100
+    );
+  });
+
+  it('requires more evidence than a RIASEC overlap alone', () => {
+    const riasecOnly = job({
+      label: 'Métier générique',
+      domain: { label: 'Domaine neutre' },
+      riasec: { major: 'E', codes: ['RIASEC_E'] },
+      skills: [{ label: 'activité sans compétence profilée', isMain: true }],
+      workContexts: [{ label: 'cadre standard' }],
+      themes: [{ label: 'thème neutre' }],
+    });
+    const signals: JobScoringSignals = {
+      interests: [signal('RIASEC_E', 3.6)],
+      sectors: [signal('Publicité', 3.6)],
+      skills: [signal('communication', 5)],
+      workConditions: [signal('autonomie', 1.6)],
+    };
+
+    expect(scoreJobForProfile(riasecOnly, signals).score).toBe(0);
+  });
+
   it('limits over-concentration in one sector when enough alternatives exist', () => {
     const ranked = [
       {

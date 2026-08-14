@@ -12,6 +12,7 @@ import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import User from '@/models/User';
 import { WorkStyleResult } from '@/models/WorkStyleResult';
+import { ALGORITHM_VERSION } from '@/services/jobs/profileMatching';
 import { buildRomeMetier, createRomeMetier } from '@/tests/helpers/rome';
 
 const createUserAndGetToken = async () => {
@@ -927,6 +928,7 @@ describe('Jobs routes', () => {
 
       await RecommendationProfile.create({
         user: userId,
+        algorithmVersion: ALGORITHM_VERSION,
         completedSources: ['bilan', 'personality', 'work_style'],
         missingSources: [],
         unlocked: true,
