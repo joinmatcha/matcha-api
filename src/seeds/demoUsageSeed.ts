@@ -465,12 +465,11 @@ const stableIndex = (seed: string, modulo: number) => {
 
 const demoEmailDomainForPersona = (persona: Persona, index: number) => {
   const weightedDomains = [
-    'example.com',
-    'example.com',
-    'example.com',
-    'example.net',
-    'example.net',
-    'example.org',
+    'gmail.com',
+    'outlook.fr',
+    'hotmail.com',
+    'hotmail.fr',
+    'yahoo.com',
   ] as const;
 
   return weightedDomains[
@@ -481,7 +480,28 @@ const demoEmailDomainForPersona = (persona: Persona, index: number) => {
   ];
 };
 
+const demoEmailLocalPartForPersona = (persona: Persona, index: number) => {
+  const firstName = slugify(persona.firstName);
+  const lastName = slugify(persona.lastName);
+  const formats = [
+    `${firstName}.${lastName}`,
+    `${firstName}${lastName}`,
+    `${firstName[0]}.${lastName}`,
+    `${firstName}.${lastName}${String(persona.birthYear).slice(-2)}`,
+    `${lastName}.${firstName}`,
+    `${firstName}${String(77 + index * 3)}`,
+  ];
+
+  return formats[index % formats.length];
+};
+
 const demoEmailForPersona = (persona: Persona, index: number) =>
+  `${demoEmailLocalPartForPersona(persona, index)}@${demoEmailDomainForPersona(
+    persona,
+    index
+  )}`;
+
+const legacyDemoEmailForPersona = (persona: Persona, index: number) =>
   `${slugify(persona.firstName)}.${slugify(persona.lastName)}.${String(
     202607 + index * 17
   )}@${demoEmailDomainForPersona(persona, index)}`;
@@ -511,7 +531,12 @@ function scoreMap(keys: string[], base: number) {
 
 async function cleanupDemoBatch() {
   const existingUsers = await User.find({
-    email: { $in: personas.map(demoEmailForPersona) },
+    email: {
+      $in: [
+        ...personas.map(demoEmailForPersona),
+        ...personas.map(legacyDemoEmailForPersona),
+      ],
+    },
   }).select('_id');
   const userIds = existingUsers.map((user) => user._id);
 
@@ -634,7 +659,7 @@ export async function seedDemoUsage() {
         lastName: persona.lastName,
         birthYear: persona.birthYear,
         gender: persona.gender,
-        subscription: index % 5 === 0 ? 'premium' : 'free',
+        subscription: 'free',
         role: 'user',
         jobTypes: persona.jobTypes,
         locationPref: persona.locationPref,
