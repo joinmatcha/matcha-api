@@ -35,6 +35,11 @@ const seedEnd = new Date('2026-08-17T18:00:00.000Z');
 const accountCreationHoursParis = [
   9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0,
 ];
+const registrationDayOffsets = [
+  0, 0, 1, 3, 3, 4, 6, 7, 7, 9, 12, 12, 13, 16, 18, 18, 19, 22, 23, 23, 24,
+  27, 28, 30, 30, 31, 33, 35, 35, 36, 37, 39, 39, 39, 40, 41, 42, 42, 43, 43,
+  44, 44, 44,
+];
 
 type Persona = {
   firstName: string;
@@ -445,6 +450,15 @@ const clampDate = (date: Date) =>
 const addMinutes = (date: Date, minutes: number) =>
   clampDate(new Date(date.getTime() + minutes * 60_000));
 
+const addDays = (date: Date, days: number, hour?: number, minute?: number) => {
+  const next = new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+  if (hour !== undefined) {
+    const utcHour = hour === 0 ? 22 : hour - 2;
+    next.setUTCHours(utcHour, minute ?? next.getUTCMinutes(), 0, 0);
+  }
+  return clampDate(next);
+};
+
 const dayKeyUTC = (date: Date) => date.toISOString().slice(0, 10);
 
 const slugify = (value: string) =>
@@ -507,15 +521,67 @@ const legacyDemoEmailForPersona = (persona: Persona, index: number) =>
   )}@${demoEmailDomainForPersona(persona, index)}`;
 
 function dateForIndex(index: number, hour?: number) {
-  const spanMs = seedEnd.getTime() - seedStart.getTime();
-  const ratio = index / Math.max(personas.length - 1, 1);
-  const jitterMs = ((index * 37) % 9) * 60 * 60 * 1000;
-  const date = new Date(seedStart.getTime() + spanMs * ratio + jitterMs);
+  const dayOffset = registrationDayOffsets[index % registrationDayOffsets.length];
+  const date = new Date(seedStart);
+  date.setUTCDate(seedStart.getUTCDate() + dayOffset);
   const parisHour = hour ?? pick(accountCreationHoursParis, index);
   // Seed period is July/August 2026, so Paris local time is UTC+2.
   const utcHour = parisHour === 0 ? 22 : parisHour - 2;
   date.setUTCHours(utcHour, 10 + ((index * 7) % 45), 0, 0);
   return clampDate(date);
+}
+
+function timelineForIndex(index: number) {
+  const registeredAt = dateForIndex(index);
+  const sameDayFinish = index % 5 !== 1;
+  const delayedPersonality = index % 4 === 2;
+  const delayedWorkStyle = index % 6 === 3;
+  const returnsAfterDays = [0, 1, 1, 2, 3, 5, 7][index % 7];
+  const eveningHour = pick([19, 20, 21, 22], index);
+  const lunchHour = pick([12, 13, 14], index);
+
+  const bilanStartedAt = addMinutes(registeredAt, 10 + (index % 8) * 2);
+  const bilanCompletedAt = sameDayFinish
+    ? addMinutes(bilanStartedAt, 18 + (index % 5) * 4)
+    : addDays(registeredAt, 1, lunchHour, 12 + (index % 35));
+
+  const personalityStartedAt = delayedPersonality
+    ? addDays(bilanCompletedAt, 1, eveningHour, 5 + (index % 40))
+    : addMinutes(bilanCompletedAt, 14 + (index % 4) * 6);
+  const personalityCompletedAt = addMinutes(
+    personalityStartedAt,
+    9 + (index % 6) * 3
+  );
+
+  const workStyleStartedAt = delayedWorkStyle
+    ? addDays(personalityCompletedAt, 1 + (index % 2), lunchHour, 8)
+    : addMinutes(personalityCompletedAt, 12 + (index % 5) * 5);
+  const workStyleCompletedAt = addMinutes(
+    workStyleStartedAt,
+    7 + (index % 5) * 2
+  );
+
+  const recommendationAt = addMinutes(workStyleCompletedAt, 4 + (index % 6));
+  const firstSwipeAt = addDays(
+    registeredAt,
+    returnsAfterDays,
+    returnsAfterDays === 0 ? eveningHour : pick([10, 12, 18, 21], index),
+    4 + ((index * 11) % 46)
+  );
+  const supportAt = addDays(registeredAt, 2 + (index % 4), 18 + (index % 5), 6);
+
+  return {
+    registeredAt,
+    bilanStartedAt,
+    bilanCompletedAt,
+    personalityStartedAt,
+    personalityCompletedAt,
+    workStyleStartedAt,
+    workStyleCompletedAt,
+    recommendationAt,
+    firstSwipeAt,
+    supportAt,
+  };
 }
 
 function pick<T>(items: readonly T[], index: number) {
@@ -733,7 +799,7 @@ export async function seedDemoUsage() {
 
   const users = await User.insertMany(
     personas.map((persona, index) => {
-      const registeredAt = dateForIndex(index);
+      const { registeredAt } = timelineForIndex(index);
       return {
         email: demoEmailForPersona(persona, index),
         passwordHash,
@@ -766,7 +832,7 @@ export async function seedDemoUsage() {
   const bilans = await BilanCompetence.insertMany(
     users.slice(0, completedBilanCount).map((user, index) => {
       const persona = personas[index];
-      const completedAt = addMinutes(dateForIndex(index), 18);
+      const { bilanCompletedAt } = timelineForIndex(index);
       return {
         user: user._id,
         version: catalogs.bilanVersion.version,
@@ -833,7 +899,7 @@ export async function seedDemoUsage() {
             'Identifier une piste prioritaire à approfondir',
           ],
         },
-        createdAt: completedAt,
+        createdAt: bilanCompletedAt,
       };
     })
   );
@@ -841,7 +907,7 @@ export async function seedDemoUsage() {
   const personalityTests = await PersonalityTest.insertMany(
     users.slice(0, completedPersonalityCount).map((user, index) => {
       const persona = personas[index];
-      const completedAt = addMinutes(dateForIndex(index), 35);
+      const { personalityCompletedAt } = timelineForIndex(index);
       return {
         userId: user._id,
         templateId: catalogs.personalityVersion._id,
@@ -885,8 +951,8 @@ export async function seedDemoUsage() {
           TF: index % 4 === 0 ? -2 : 2,
           JP: index % 2 === 0 ? 3 : -2,
         },
-        createdAt: completedAt,
-        updatedAt: completedAt,
+        createdAt: personalityCompletedAt,
+        updatedAt: personalityCompletedAt,
       };
     })
   );
@@ -894,7 +960,7 @@ export async function seedDemoUsage() {
   const workStyleResults = await WorkStyleResult.insertMany(
     users.slice(0, completedWorkStyleCount).map((user, index) => {
       const persona = personas[index];
-      const completedAt = addMinutes(dateForIndex(index), 48);
+      const { workStyleCompletedAt } = timelineForIndex(index);
       return {
         user: user._id,
         versionId: catalogs.workStyleVersion._id,
@@ -928,8 +994,8 @@ export async function seedDemoUsage() {
             'Valider les contraintes concrètes du métier',
           ],
         },
-        createdAt: completedAt,
-        updatedAt: completedAt,
+        createdAt: workStyleCompletedAt,
+        updatedAt: workStyleCompletedAt,
       };
     })
   );
@@ -940,7 +1006,7 @@ export async function seedDemoUsage() {
       const selectedJobs = Array.from({ length: 8 + (index % 5) }).map(
         (_, jobIndex) => pick(jobs, index * 7 + jobIndex * 3)
       );
-      const recalculatedAt = addMinutes(dateForIndex(index), 56);
+      const { recommendationAt } = timelineForIndex(index);
 
       return {
         user: user._id,
@@ -991,9 +1057,9 @@ export async function seedDemoUsage() {
               : 'Dans un secteur qui ressort de ton profil',
           ],
         })),
-        recalculatedAt,
-        createdAt: recalculatedAt,
-        updatedAt: recalculatedAt,
+        recalculatedAt: recommendationAt,
+        createdAt: recommendationAt,
+        updatedAt: recommendationAt,
       };
     })
   );
@@ -1013,7 +1079,7 @@ export async function seedDemoUsage() {
   );
 
   const swipes = users.flatMap((user, userIndex) => {
-    const firstSwipeAt = addMinutes(dateForIndex(userIndex), 70);
+    const { firstSwipeAt } = timelineForIndex(userIndex);
     const swipeCount = 5 + (userIndex % 7);
     return Array.from({ length: swipeCount }).map((_, swipeIndex) => {
       const swipedAt = addMinutes(firstSwipeAt, swipeIndex * 9);
@@ -1045,7 +1111,8 @@ export async function seedDemoUsage() {
   await SwipeQuota.insertMany([...quotaByUserDay.values()]);
 
   const matchingDecisions = profiles.flatMap((profile, profileIndex) => {
-    const decidedAt = addMinutes(dateForIndex(profileIndex), 95);
+    const { recommendationAt } = timelineForIndex(profileIndex);
+    const decidedAt = addMinutes(recommendationAt, 5 + (profileIndex % 4) * 3);
     return profile.matchedJobs.slice(0, 5).map((job, decisionIndex) => ({
       userId: profile.user as Types.ObjectId,
       jobId: job.jobId,
@@ -1061,7 +1128,7 @@ export async function seedDemoUsage() {
     users.slice(2, 5).map((user, index) => {
       const persona = personas[index + 2];
       const support = pick(supportMessages, index);
-      const createdAt = addMinutes(dateForIndex(index + 2), 130);
+      const { supportAt } = timelineForIndex(index + 2);
       return {
         user: user._id,
         email: user.email,
@@ -1071,16 +1138,25 @@ export async function seedDemoUsage() {
           support.status === 'resolved'
             ? 'Demande traitée après vérification du parcours mobile.'
             : undefined,
-        handledAt: addMinutes(createdAt, 240),
-        createdAt,
-        updatedAt: addMinutes(createdAt, 240),
+        handledAt: addMinutes(supportAt, 240),
+        createdAt: supportAt,
+        updatedAt: addMinutes(supportAt, 240),
       };
     })
   );
 
   const events = users.flatMap((user, index) => {
     const userHash = hashAnalyticsUserId(user._id.toString());
-    const registeredAt = dateForIndex(index);
+    const timeline = timelineForIndex(index);
+    const {
+      registeredAt,
+      bilanStartedAt,
+      bilanCompletedAt,
+      personalityStartedAt,
+      personalityCompletedAt,
+      workStyleStartedAt,
+      workStyleCompletedAt,
+    } = timeline;
     const sessionId = `demo-usage-${index + 1}`;
     const baseMetadata: Record<string, unknown> = {
       seedBatch,
@@ -1096,11 +1172,19 @@ export async function seedDemoUsage() {
         entityId: 'bilan-v2',
         stepId: undefined,
         metadata: { ...baseMetadata, totalQuestions: 56 },
-        occurredAt: addMinutes(registeredAt, 12),
+        occurredAt: bilanStartedAt,
       },
     ];
 
     [1, 2, 3, 4].forEach((stepIndex) => {
+      const stepSpacing = Math.max(
+        4,
+        Math.round(
+          (bilanCompletedAt.getTime() - bilanStartedAt.getTime()) /
+            60_000 /
+            6
+        )
+      );
       userEvents.push({
         eventType: 'test_step_completed',
         entityType: 'bilan',
@@ -1111,7 +1195,7 @@ export async function seedDemoUsage() {
           stepIndex,
           totalSteps: catalogs.bilanQuestions.length,
         },
-        occurredAt: addMinutes(registeredAt, 12 + stepIndex * 3),
+        occurredAt: addMinutes(bilanStartedAt, stepIndex * stepSpacing),
       });
     });
 
@@ -1122,7 +1206,7 @@ export async function seedDemoUsage() {
         entityId: 'bilan-v2',
         stepId: undefined,
         metadata: { ...baseMetadata, durationMs: 12 * 60_000 },
-        occurredAt: addMinutes(registeredAt, 26),
+        occurredAt: bilanCompletedAt,
       });
     } else {
       userEvents.push({
@@ -1131,7 +1215,7 @@ export async function seedDemoUsage() {
         entityId: 'bilan-v2',
         stepId: 'demo-bilan-q18',
         metadata: { ...baseMetadata, answeredCount: 18, totalQuestions: 56 },
-        occurredAt: addMinutes(registeredAt, 22),
+        occurredAt: addMinutes(bilanStartedAt, 22 + (index % 5) * 4),
       });
     }
 
@@ -1143,7 +1227,7 @@ export async function seedDemoUsage() {
           entityId: 'personality-v1',
           stepId: undefined,
           metadata: { ...baseMetadata, totalQuestions: 24 },
-          occurredAt: addMinutes(registeredAt, 32),
+          occurredAt: personalityStartedAt,
         },
         {
           eventType: 'test_step_completed',
@@ -1155,7 +1239,7 @@ export async function seedDemoUsage() {
             stepIndex: 4,
             totalSteps: catalogs.personalityQuestions.length,
           },
-          occurredAt: addMinutes(registeredAt, 35),
+          occurredAt: addMinutes(personalityStartedAt, 4 + (index % 4)),
         },
         {
           eventType: 'test_completed',
@@ -1163,7 +1247,7 @@ export async function seedDemoUsage() {
           entityId: 'personality-v1',
           stepId: undefined,
           metadata: { ...baseMetadata, durationMs: 8 * 60_000 },
-          occurredAt: addMinutes(registeredAt, 41),
+          occurredAt: personalityCompletedAt,
         }
       );
     }
@@ -1176,7 +1260,7 @@ export async function seedDemoUsage() {
           entityId: 'work-style-v1',
           stepId: undefined,
           metadata: { ...baseMetadata, totalQuestions: 16 },
-          occurredAt: addMinutes(registeredAt, 44),
+          occurredAt: workStyleStartedAt,
         },
         {
           eventType: 'test_step_completed',
@@ -1188,7 +1272,7 @@ export async function seedDemoUsage() {
             stepIndex: 3,
             totalSteps: catalogs.workStyleQuestions.length,
           },
-          occurredAt: addMinutes(registeredAt, 47),
+          occurredAt: addMinutes(workStyleStartedAt, 3 + (index % 4)),
         },
         {
           eventType: 'test_completed',
@@ -1196,7 +1280,7 @@ export async function seedDemoUsage() {
           entityId: 'work-style-v1',
           stepId: undefined,
           metadata: { ...baseMetadata, durationMs: 6 * 60_000 },
-          occurredAt: addMinutes(registeredAt, 51),
+          occurredAt: workStyleCompletedAt,
         }
       );
     }
@@ -1217,7 +1301,7 @@ export async function seedDemoUsage() {
             jobTitle: job?.label,
             domain: job?.domain?.label,
           },
-          occurredAt: addMinutes(registeredAt, 70 + swipeIndex * 9),
+          occurredAt: swipe.swipedAt,
         });
       });
 
