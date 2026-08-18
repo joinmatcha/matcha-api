@@ -23,6 +23,7 @@
     "seed:work-style": "if [ -f dist/scripts/seed-work-style.js ]; then node dist/scripts/seed-work-style.js; else ts-node -r tsconfig-paths/register src/scripts/seed-work-style.ts; fi",
     "seed:analytics": "if [ -f dist/scripts/seed-analytics.js ]; then node dist/scripts/seed-analytics.js; else ts-node -r tsconfig-paths/register src/scripts/seed-analytics.ts; fi",
     "seed:users": "if [ -f dist/scripts/seed-demo-usage.js ]; then node dist/scripts/seed-demo-usage.js; else ts-node -r tsconfig-paths/register src/scripts/seed-demo-usage.ts; fi",
+    "cleanup:seed-users": "if [ -f dist/scripts/cleanup-seed-users.js ]; then node dist/scripts/cleanup-seed-users.js; else ts-node -r tsconfig-paths/register src/scripts/cleanup-seed-users.ts; fi",
     "sync:rome": "if [ -f dist/scripts/sync-rome-jobs.js ]; then node dist/scripts/sync-rome-jobs.js; else ts-node -r tsconfig-paths/register src/scripts/sync-rome-jobs.ts; fi",
     "sync:rome:cron": "if [ -f dist/scripts/sync-rome-jobs.js ]; then node dist/scripts/sync-rome-jobs.js --cron; else ts-node -r tsconfig-paths/register src/scripts/sync-rome-jobs.ts --cron; fi",
     "sync:market": "if [ -f dist/scripts/sync-market-stats.js ]; then node dist/scripts/sync-market-stats.js; else ts-node -r tsconfig-paths/register src/scripts/sync-market-stats.ts; fi",

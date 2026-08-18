@@ -529,29 +529,111 @@ function scoreMap(keys: string[], base: number) {
   }, {});
 }
 
-async function cleanupDemoBatch() {
-  const existingUsers = await User.find({
-    email: {
-      $in: [
-        ...personas.map(demoEmailForPersona),
-        ...personas.map(legacyDemoEmailForPersona),
-      ],
-    },
-  }).select('_id');
-  const userIds = existingUsers.map((user) => user._id);
+async function findSeedUserIds() {
+  const seedEmailMatch = {
+    $or: [
+      {
+        email: {
+          $in: [
+            ...personas.map(demoEmailForPersona),
+            ...personas.map(legacyDemoEmailForPersona),
+          ],
+        },
+      },
+      {
+        email: { $regex: '@example\\.(com|net|org)$', $options: 'i' },
+        createdAt: { $gte: seedStart, $lte: seedEnd },
+      },
+    ],
+  };
 
-  await Promise.all([
-    AnalyticsEvent.deleteMany({ 'metadata.seedBatch': seedBatch }),
+  const [users, recommendationUserIds, supportUserIds] = await Promise.all([
+    User.find(seedEmailMatch).select('_id'),
+    RecommendationProfile.distinct('user', {
+      algorithmVersion: 'profile-matching-v4-demo',
+    }),
+    SupportRequest.distinct('user', {
+      email: { $regex: '@example\\.(com|net|org)$', $options: 'i' },
+      createdAt: { $gte: seedStart, $lte: seedEnd },
+    }),
+  ]);
+
+  const userIds = new Set<string>();
+  for (const user of users) userIds.add(user._id.toString());
+  for (const userId of recommendationUserIds) {
+    if (userId) userIds.add(userId.toString());
+  }
+  for (const userId of supportUserIds) {
+    if (userId) userIds.add(userId.toString());
+  }
+
+  return [...userIds]
+    .filter((userId) => Types.ObjectId.isValid(userId))
+    .map((userId) => new Types.ObjectId(userId));
+}
+
+export async function cleanupSeedUsers() {
+  const userIds = await findSeedUserIds();
+
+  const [
+    analyticsEvents,
+    bilans,
+    matchingDecisions,
+    personalityTests,
+    recommendationProfiles,
+    supportRequests,
+    swipes,
+    swipeQuotas,
+    workStyleResults,
+    users,
+  ] = await Promise.all([
+    AnalyticsEvent.deleteMany({
+      $or: [
+        { 'metadata.seedBatch': seedBatch },
+        { sessionId: /^demo-usage-/ },
+        { appVersion },
+      ],
+    }),
     BilanCompetence.deleteMany({ user: { $in: userIds } }),
     MatchingDecision.deleteMany({ userId: { $in: userIds } }),
     PersonalityTest.deleteMany({ userId: { $in: userIds } }),
-    RecommendationProfile.deleteMany({ user: { $in: userIds } }),
-    SupportRequest.deleteMany({ user: { $in: userIds } }),
+    RecommendationProfile.deleteMany({
+      $or: [
+        { user: { $in: userIds } },
+        { algorithmVersion: 'profile-matching-v4-demo' },
+      ],
+    }),
+    SupportRequest.deleteMany({
+      $or: [
+        { user: { $in: userIds } },
+        {
+          email: { $regex: '@example\\.(com|net|org)$', $options: 'i' },
+          createdAt: { $gte: seedStart, $lte: seedEnd },
+        },
+      ],
+    }),
     Swipe.deleteMany({ userId: { $in: userIds } }),
     SwipeQuota.deleteMany({ userId: { $in: userIds } }),
     WorkStyleResult.deleteMany({ user: { $in: userIds } }),
     User.deleteMany({ _id: { $in: userIds } }),
   ]);
+
+  return {
+    users: users.deletedCount,
+    bilans: bilans.deletedCount,
+    personalityTests: personalityTests.deletedCount,
+    workStyleResults: workStyleResults.deletedCount,
+    recommendationProfiles: recommendationProfiles.deletedCount,
+    swipes: swipes.deletedCount,
+    swipeQuotas: swipeQuotas.deletedCount,
+    matchingDecisions: matchingDecisions.deletedCount,
+    supportRequests: supportRequests.deletedCount,
+    analyticsEvents: analyticsEvents.deletedCount,
+  };
+}
+
+async function cleanupDemoBatch() {
+  await cleanupSeedUsers();
 }
 
 async function loadJobs() {
