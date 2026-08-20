@@ -535,6 +535,48 @@ describe('Admin routes', () => {
       });
     });
 
+    it('should filter users by unverified email status', async () => {
+      const { admin, password } = await createAdmin();
+      const timestamp = Date.now();
+
+      await User.create([
+        {
+          email: `verified-${timestamp}@example.com`,
+          passwordHash: await bcrypt.hash('AnotherPassw0rd!', 10),
+          firstName: 'Verified',
+          lastName: 'Member',
+          consentAccepted: true,
+          isEmailVerified: true,
+          role: 'user',
+        },
+        {
+          email: `unverified-${timestamp}@example.com`,
+          passwordHash: await bcrypt.hash('AnotherPassw0rd!', 10),
+          firstName: 'Unverified',
+          lastName: 'Member',
+          consentAccepted: true,
+          isEmailVerified: false,
+          role: 'user',
+        },
+      ]);
+
+      const loginRes = await request(app).post('/api/admin/auth/login').send({
+        email: admin.email,
+        password,
+      });
+
+      const res = await request(app)
+        .get('/api/admin/users?isEmailVerified=false&q=Member')
+        .set('Cookie', getAdminCookie(loginRes));
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0]).toMatchObject({
+        email: `unverified-${timestamp}@example.com`,
+        isEmailVerified: false,
+      });
+    });
+
     it('should validate admin user updates and reject empty bodies', async () => {
       const { admin, password } = await createAdmin();
       const loginRes = await request(app).post('/api/admin/auth/login').send({
