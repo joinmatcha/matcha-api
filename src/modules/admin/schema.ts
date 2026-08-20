@@ -8,6 +8,11 @@ const paginationSchema = z.object({
   q: z.string().trim().optional(),
 });
 
+const booleanQuerySchema = z
+  .enum(['true', 'false'])
+  .transform((value) => value === 'true')
+  .optional();
+
 export const adminLoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -16,7 +21,7 @@ export const adminLoginSchema = z.object({
 export const adminUserListQuerySchema = paginationSchema.extend({
   role: z.enum(['user', 'admin']).optional(),
   subscription: z.enum(['free', 'premium']).optional(),
-  isEmailVerified: z.coerce.boolean().optional(),
+  isEmailVerified: booleanQuerySchema,
 });
 
 export const adminUserParamsSchema = z.object({
