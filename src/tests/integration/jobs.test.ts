@@ -15,7 +15,9 @@ import { WorkStyleResult } from '@/models/WorkStyleResult';
 import { ALGORITHM_VERSION } from '@/services/jobs/profileMatching';
 import { buildRomeMetier, createRomeMetier } from '@/tests/helpers/rome';
 
-const createUserAndGetToken = async () => {
+const createUserAndGetToken = async ({
+  subscription = 'free',
+}: { subscription?: 'free' | 'premium' } = {}) => {
   const email = `job-test-${Date.now()}@example.com`;
 
   const res = await request(app).post('/api/users').send({
@@ -30,6 +32,7 @@ const createUserAndGetToken = async () => {
   if (!user) throw new Error('User not found');
 
   user.isEmailVerified = true;
+  user.subscription = subscription;
   await user.save();
 
   const token = jwt.sign(
@@ -172,6 +175,58 @@ describe('Jobs routes', () => {
       expect(res.body.jobs[0]).toMatchObject({
         id: expect.any(String),
         title: expect.any(String),
+      });
+    });
+
+    it('should return the premium daily limit for premium users', async () => {
+      const { token } = await createUserAndGetToken({
+        subscription: 'premium',
+      });
+
+      await createRomeMetier({ label: 'Développeur·se web' });
+
+      const res = await request(app)
+        .get('/api/jobs/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.remaining).toBe(20);
+      expect(res.body.limit).toBe(20);
+    });
+
+    it('should include market highlights in the deck when available', async () => {
+      const { token } = await createUserAndGetToken();
+
+      const job = await createRomeMetier({
+        code: 'M1805',
+        label: 'Développeur·se web',
+        domain: { label: 'Tech' },
+      });
+      await RomeMarketStat.create({
+        metierId: job._id,
+        metierCode: job.code,
+        metierLabel: job.label,
+        territory: { type: 'NAT', code: 'FR', label: 'France' },
+        salary: {
+          label: 'Salaire',
+          values: [{ label: 'Salaire moyen', amount: 42000 }],
+        },
+        offers: {
+          label: 'Offres',
+          values: [{ label: 'Offres publiées', count: 1280 }],
+        },
+        lastSyncedAt: new Date('2026-01-01'),
+      });
+
+      const res = await request(app)
+        .get('/api/jobs/deck')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs[0].marketHighlights).toMatchObject({
+        territoryLabel: 'France',
+        salary: { label: 'Salaire moyen', amount: 42000 },
+        offers: { label: 'Offres publiées', count: 1280 },
       });
     });
 
@@ -443,6 +498,23 @@ describe('Jobs routes', () => {
       expect(res.body.swipe.jobId).toBe(job._id.toString());
       expect(res.body.remaining).toBe(9);
       expect(res.body.limit).toBe(10);
+    });
+
+    it('should use the premium daily limit when a premium user swipes', async () => {
+      const { token } = await createUserAndGetToken({
+        subscription: 'premium',
+      });
+
+      const job = await createRomeMetier({ label: 'Dev premium' });
+
+      const res = await request(app)
+        .post('/api/jobs/swipe')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ jobId: job._id.toString(), action: 'like' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.remaining).toBe(19);
+      expect(res.body.limit).toBe(20);
     });
 
     it('should return 201 and record a dislike', async () => {
@@ -973,6 +1045,37 @@ describe('Jobs routes', () => {
       expect(res.body.jobs[0]).toMatchObject({
         title: 'Métier matché 1',
         decision: null,
+      });
+    });
+
+    it('should include market highlights in matched jobs when available', async () => {
+      const { user, token } = await createUserAndGetToken();
+      const [jobId] = await createMatchingProfile(user._id);
+
+      await RomeMarketStat.create({
+        metierId: jobId,
+        metierCode: 'M1800',
+        metierLabel: 'Métier matché 1',
+        territory: { type: 'NAT', code: 'FR', label: 'France' },
+        salary: {
+          label: 'Salaire',
+          values: [{ label: 'Salaire moyen', amount: 39000 }],
+        },
+        tension: {
+          label: 'Tension',
+          values: [{ label: 'Marché favorable', decimal: 4.2 }],
+        },
+        lastSyncedAt: new Date('2026-01-01'),
+      });
+
+      const res = await request(app)
+        .get('/api/jobs/matching')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.jobs[0].marketHighlights).toMatchObject({
+        salary: { label: 'Salaire moyen', amount: 39000 },
+        tension: { label: 'Marché favorable', decimal: 4.2 },
       });
     });
 
