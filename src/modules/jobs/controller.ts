@@ -12,6 +12,7 @@ import { RomeMarketStat } from '@/models/RomeMarketStat';
 import { RomeMetier } from '@/models/RomeMetier';
 import { Swipe } from '@/models/Swipe';
 import { SwipeQuota } from '@/models/SwipeQuota';
+import User from '@/models/User';
 import { compareJobsForUser } from '@/services/jobs/compare';
 import {
   ALGORITHM_VERSION,
@@ -53,16 +54,56 @@ function getTodaySwipeFilter(userId: string, dayKey: string) {
 
 type MongoDuplicateKeyError = Error & { code?: number };
 type IdParams = { id: string };
+const PREMIUM_DAILY_SWIPE_LIMIT = 20;
+type MarketStatLike = {
+  metierId: Types.ObjectId;
+  territory?: { label?: string };
+  salary?: {
+    values?: Array<{
+      label?: string;
+      amount?: number;
+      periodLabel?: string;
+    }>;
+  };
+  offers?: {
+    values?: Array<{
+      label?: string;
+      count?: number;
+      periodLabel?: string;
+    }>;
+  };
+  tension?: {
+    values?: Array<{
+      label?: string;
+      decimal?: number;
+      rank?: number;
+      rate?: number;
+      periodLabel?: string;
+    }>;
+  };
+  lastSyncedAt?: Date;
+};
 
 const isDuplicateKeyError = (error: unknown): error is MongoDuplicateKeyError =>
   error instanceof Error &&
   typeof (error as MongoDuplicateKeyError).code === 'number' &&
   (error as MongoDuplicateKeyError).code === 11000;
 
-async function reserveDailySwipeSlot(userId: string, dayKey: string) {
+async function getDailySwipeLimit(userId: string) {
+  const user = await User.findById(userId).select('subscription').lean();
+  return user?.subscription === 'premium'
+    ? PREMIUM_DAILY_SWIPE_LIMIT
+    : DAILY_SWIPE_LIMIT;
+}
+
+async function reserveDailySwipeSlot(
+  userId: string,
+  dayKey: string,
+  dailyLimit: number
+) {
   try {
     const quota = await SwipeQuota.findOneAndUpdate(
-      { userId, dayKey, count: { $lt: DAILY_SWIPE_LIMIT } },
+      { userId, dayKey, count: { $lt: dailyLimit } },
       { $inc: { count: 1 }, $setOnInsert: { userId, dayKey } },
       { new: true, upsert: true }
     );
@@ -72,7 +113,7 @@ async function reserveDailySwipeSlot(userId: string, dayKey: string) {
     // Concurrent upsert can create a duplicate key race, retry once on existing doc.
     if (isDuplicateKeyError(error)) {
       return SwipeQuota.findOneAndUpdate(
-        { userId, dayKey, count: { $lt: DAILY_SWIPE_LIMIT } },
+        { userId, dayKey, count: { $lt: dailyLimit } },
         { $inc: { count: 1 } },
         { new: true }
       );
@@ -81,7 +122,78 @@ async function reserveDailySwipeSlot(userId: string, dayKey: string) {
   }
 }
 
-function formatRomeJobSummary(job: any) {
+function formatMarketHighlights(market: MarketStatLike | undefined) {
+  if (!market) return null;
+
+  const salary = market.salary?.values?.find(
+    (value) => typeof value.amount === 'number'
+  );
+  const offers = market.offers?.values?.find(
+    (value) => typeof value.count === 'number'
+  );
+  const tension = market.tension?.values?.find(
+    (value) =>
+      Boolean(value.label) ||
+      typeof value.decimal === 'number' ||
+      typeof value.rank === 'number' ||
+      typeof value.rate === 'number'
+  );
+
+  if (!salary && !offers && !tension) return null;
+
+  return {
+    territoryLabel: market.territory?.label,
+    salary: salary
+      ? {
+          label: salary.label,
+          amount: salary.amount,
+          periodLabel: salary.periodLabel,
+        }
+      : undefined,
+    offers: offers
+      ? {
+          label: offers.label,
+          count: offers.count,
+          periodLabel: offers.periodLabel,
+        }
+      : undefined,
+    tension: tension
+      ? {
+          label: tension.label,
+          decimal: tension.decimal,
+          rank: tension.rank,
+          rate: tension.rate,
+          periodLabel: tension.periodLabel,
+        }
+      : undefined,
+    lastSyncedAt: market.lastSyncedAt,
+  };
+}
+
+async function getMarketHighlightsByJobId(jobIds: Types.ObjectId[]) {
+  const marketStats = await RomeMarketStat.find({ metierId: { $in: jobIds } })
+    .sort({ lastSyncedAt: -1 })
+    .select('metierId territory salary offers tension lastSyncedAt')
+    .lean<MarketStatLike[]>();
+
+  const highlights = new Map<
+    string,
+    ReturnType<typeof formatMarketHighlights>
+  >();
+  for (const market of marketStats) {
+    const jobId = market.metierId.toString();
+    if (!highlights.has(jobId)) {
+      highlights.set(jobId, formatMarketHighlights(market));
+    }
+  }
+
+  return highlights;
+}
+
+function formatRomeJobSummary(
+  job: any,
+  marketHighlights?: ReturnType<typeof formatMarketHighlights>
+) {
   return {
     id: job._id.toString(),
     code: job.code,
@@ -94,16 +206,20 @@ function formatRomeJobSummary(job: any) {
       ...(job.sectors ?? []).map((sector: { label?: string }) => sector.label),
     ].filter(Boolean),
     riasec: job.riasec?.codes ?? [],
+    marketHighlights: marketHighlights ?? null,
   };
 }
 
-function formatMatchedJobSummary(job: {
-  id: string;
-  code: string;
-  title: string;
-  sector?: string;
-  description?: string;
-}) {
+function formatMatchedJobSummary(
+  job: {
+    id: string;
+    code: string;
+    title: string;
+    sector?: string;
+    description?: string;
+  },
+  marketHighlights?: ReturnType<typeof formatMarketHighlights>
+) {
   return {
     id: job.id,
     code: job.code,
@@ -113,6 +229,7 @@ function formatMatchedJobSummary(job: {
     growthOutlook: 'unknown',
     tags: [],
     riasec: [],
+    marketHighlights: marketHighlights ?? null,
   };
 }
 
@@ -129,7 +246,8 @@ function formatMatchingProfileJob(
     score: number;
     reasons: string[];
   },
-  action?: 'like' | 'dislike'
+  action?: 'like' | 'dislike',
+  marketHighlights?: ReturnType<typeof formatMarketHighlights>
 ) {
   return {
     id: toObjectIdString(job.jobId),
@@ -139,6 +257,7 @@ function formatMatchingProfileJob(
     score: job.score,
     reasons: job.reasons,
     decision: action ?? null,
+    marketHighlights: marketHighlights ?? null,
   };
 }
 
@@ -236,7 +355,7 @@ export const listJobs = async (
       .lean();
 
     return res.status(200).json({
-      jobs: jobs.map(formatRomeJobSummary),
+      jobs: jobs.map((job) => formatRomeJobSummary(job)),
     });
   } catch (error) {
     next(error);
@@ -254,6 +373,7 @@ export const getDeck = async (
     }
 
     const dayKey = getDayKeyUTC();
+    const dailyLimit = await getDailySwipeLimit(req.user.id);
 
     const quota = await SwipeQuota.findOne({
       userId: req.user.id,
@@ -264,13 +384,13 @@ export const getDeck = async (
     );
     const swipedToday = Math.max(quota?.count ?? 0, swipedTodayFromSwipes);
 
-    const remaining = Math.max(DAILY_SWIPE_LIMIT - swipedToday, 0);
+    const remaining = Math.max(dailyLimit - swipedToday, 0);
 
     if (remaining === 0) {
       return res.status(200).json({
         jobs: [],
         remaining: 0,
-        limit: DAILY_SWIPE_LIMIT,
+        limit: dailyLimit,
       });
     }
 
@@ -332,13 +452,30 @@ export const getDeck = async (
         !personalizedIds.some((id) => id.equals(job._id as Types.ObjectId))
     );
 
+    const deckJobs = [
+      ...personalizedJobs.map((job) => ({
+        source: 'matched' as const,
+        job,
+        id: new Types.ObjectId(job.id),
+      })),
+      ...fallbackWithoutDuplicates.map((job) => ({
+        source: 'rome' as const,
+        job,
+        id: job._id as Types.ObjectId,
+      })),
+    ].slice(0, size);
+    const marketHighlights = await getMarketHighlightsByJobId(
+      deckJobs.map((job) => job.id)
+    );
+
     return res.status(200).json({
-      jobs: [
-        ...personalizedJobs.map(formatMatchedJobSummary),
-        ...fallbackWithoutDuplicates.map(formatRomeJobSummary),
-      ].slice(0, size),
+      jobs: deckJobs.map(({ source, job, id }) =>
+        source === 'matched'
+          ? formatMatchedJobSummary(job, marketHighlights.get(id.toString()))
+          : formatRomeJobSummary(job, marketHighlights.get(id.toString()))
+      ),
       remaining,
-      limit: DAILY_SWIPE_LIMIT,
+      limit: dailyLimit,
     });
   } catch (error) {
     next(error);
@@ -357,6 +494,7 @@ export const swipeJob = async (
 
     const { jobId, action } = req.body;
     const dayKey = getDayKeyUTC();
+    const dailyLimit = await getDailySwipeLimit(req.user.id);
 
     if (!jobId || !action) {
       return res.status(400).json({ message: 'jobId et action sont requis' });
@@ -396,20 +534,20 @@ export const swipeJob = async (
     const swipedTodayFromSwipes = await Swipe.countDocuments(
       getTodaySwipeFilter(req.user.id, dayKey)
     );
-    if (swipedTodayFromSwipes >= DAILY_SWIPE_LIMIT) {
+    if (swipedTodayFromSwipes >= dailyLimit) {
       return res.status(429).json({
         message: 'Quota journalier atteint, reviens demain !',
         remaining: 0,
-        limit: DAILY_SWIPE_LIMIT,
+        limit: dailyLimit,
       });
     }
 
-    const quota = await reserveDailySwipeSlot(req.user.id, dayKey);
+    const quota = await reserveDailySwipeSlot(req.user.id, dayKey, dailyLimit);
     if (!quota) {
       return res.status(429).json({
         message: 'Quota journalier atteint, reviens demain !',
         remaining: 0,
-        limit: DAILY_SWIPE_LIMIT,
+        limit: dailyLimit,
       });
     }
 
@@ -433,7 +571,7 @@ export const swipeJob = async (
     }
 
     const usedAfterSwipe = swipedTodayFromSwipes + 1;
-    const remaining = Math.max(DAILY_SWIPE_LIMIT - usedAfterSwipe, 0);
+    const remaining = Math.max(dailyLimit - usedAfterSwipe, 0);
     await refreshRecommendationProfile(req.user.id);
 
     return res.status(201).json({
@@ -444,7 +582,7 @@ export const swipeJob = async (
         swipedAt: swipe.swipedAt,
       },
       remaining,
-      limit: DAILY_SWIPE_LIMIT,
+      limit: dailyLimit,
     });
   } catch (error) {
     next(error);
@@ -523,8 +661,14 @@ export const getJobMatching = async (
       decisions.map((decision) => [decision.jobId.toString(), decision.action])
     );
 
+    const marketHighlights = await getMarketHighlightsByJobId(jobIds);
+
     const jobs = profile.matchedJobs.map((job) =>
-      formatMatchingProfileJob(job, decisionsByJobId.get(job.jobId.toString()))
+      formatMatchingProfileJob(
+        job,
+        decisionsByJobId.get(job.jobId.toString()),
+        marketHighlights.get(job.jobId.toString())
+      )
     );
     const likedJobs = jobs.filter((job) => job.decision === 'like');
     const dislikedJobs = jobs.filter((job) => job.decision === 'dislike');
